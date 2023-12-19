@@ -104,23 +104,26 @@ func TestPipe(t *testing.T) {
 
 func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []error) {
 	checkValidChan := make(chan DivideTarget)
-	errChan := make(chan error, 10) // 파이프 내부에서 error 전송시 block되지 않도록 충분한 버퍼를 가진 채널을 생성한다.
 	quitChan := make(chan bool)
 
-	divideTargetChan := pipe.Pipe(checkValidChan, errChan, quitChan, nil,
-		func(target DivideTarget) (*DivideTarget, error) {
+	chain1 := pipe.Chain[DivideTarget, *DivideTarget]{
+		Action: func(target DivideTarget) (*DivideTarget, error) {
 			a, b, err := checkPositive(target.denominator, target.numerator)
 			if err != nil {
 				return nil, err
 			}
 			return &DivideTarget{a, b}, nil
 		},
-	)
-	sumTargetChan := pipe.Pipe(divideTargetChan, errChan, quitChan, nil, func(dt *DivideTarget) (*sumTarget, error) {
-		return divide(dt.denominator, dt.numerator)
-	})
-	squareTargetChan := pipe.Pipe(sumTargetChan, errChan, quitChan, nil, sum)
-	resultChan := pipe.Pipe(squareTargetChan, errChan, quitChan, nil, square)
+	}
+	chain2 := pipe.Chain[*DivideTarget, *sumTarget]{
+		Action: func(dt *DivideTarget) (*sumTarget, error) {
+			return divide(dt.denominator, dt.numerator)
+		},
+	}
+	chain3 := pipe.Chain[*sumTarget, int]{Action: sum}
+	chain4 := pipe.Chain[int, int]{Action: square}
+
+	resultChan, errChan := pipe.Chain4(checkValidChan, quitChan, 10, chain1, chain2, chain3, chain4)
 
 	for _, input := range inputs {
 		checkValidChan <- input
@@ -143,9 +146,6 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 
 	close(checkValidChan)
 	time.Sleep(time.Millisecond * 100) // 파이프라인이 종료되기를 기다림
-	require.True(t, isClose(divideTargetChan))
-	require.True(t, isClose(sumTargetChan))
-	require.True(t, isClose(squareTargetChan))
 	require.True(t, isClose(resultChan))
 }
 
