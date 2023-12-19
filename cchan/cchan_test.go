@@ -148,3 +148,4 @@ func moment() <-chan time.Time {
 }
 
 type QuitSignal struct{}
+type ProcessedSignal struct{}
