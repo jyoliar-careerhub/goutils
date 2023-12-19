@@ -1,6 +1,6 @@
 package pkg1
 
-import "goutils/terr"
+import "github.com/jae2274/goutils/terr"
 
 func WrapExpected4() error {
 	return terr.Wrap(WrapExpected3())

@@ -2,9 +2,10 @@ package cchan_test
 
 import (
 	"errors"
-	"goutils/cchan"
 	"testing"
 	"time"
+
+	"github.com/jae2274/goutils/cchan"
 )
 
 func TestTooMuchError(t *testing.T) {

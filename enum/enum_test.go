@@ -3,8 +3,9 @@ package enum_test
 import (
 	"encoding/json"
 	"fmt"
-	"goutils/enum"
 	"testing"
+
+	"github.com/jae2274/goutils/enum"
 )
 
 type SiteValues struct{}

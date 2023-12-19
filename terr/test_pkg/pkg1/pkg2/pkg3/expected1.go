@@ -2,7 +2,8 @@ package pkg3
 
 import (
 	"errors"
-	"goutils/terr"
+
+	"github.com/jae2274/goutils/terr"
 )
 
 type ExampleError struct{}

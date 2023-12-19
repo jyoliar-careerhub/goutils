@@ -1,8 +1,8 @@
 package pkg1
 
 import (
-	"goutils/terr"
-	"goutils/terr/test_pkg/pkg1/pkg2"
+	"github.com/jae2274/goutils/terr"
+	"github.com/jae2274/goutils/terr/test_pkg/pkg1/pkg2"
 )
 
 func WrapExpected3() error {

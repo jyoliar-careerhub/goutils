@@ -2,12 +2,13 @@ package apiactor
 
 import (
 	"fmt"
-	"goutils/cchan"
 	"io"
 	"log"
 	"math"
 	"net/http"
 	"time"
+
+	"github.com/jae2274/goutils/cchan"
 )
 
 type ApiActor struct {

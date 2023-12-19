@@ -1,12 +1,13 @@
 package terr_test
 
 import (
-	"goutils/terr"
-	"goutils/terr/test_pkg/pkg1"
-	"goutils/terr/test_pkg/pkg1/pkg2/pkg3"
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/jae2274/goutils/terr"
+	"github.com/jae2274/goutils/terr/test_pkg/pkg1"
+	"github.com/jae2274/goutils/terr/test_pkg/pkg1/pkg2/pkg3"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,13 +25,14 @@ func TestErrStack(t *testing.T) {
 		require.Equal(t, "expected3.go", frames[2].File)
 		require.Equal(t, "expected4.go", frames[3].File)
 
-		require.Equal(t, 15, frames[0].Line)
-		require.Equal(t, 9, frames[1].Line)
-		require.Equal(t, 15, frames[2].Line)
-		require.Equal(t, 6, frames[3].Line)
+		lines := []int{16, 9, 15, 6}
+		require.Equal(t, lines[0], frames[0].Line)
+		require.Equal(t, lines[1], frames[1].Line)
+		require.Equal(t, lines[2], frames[2].Line)
+		require.Equal(t, lines[3], frames[3].Line)
 
 		require.True(t,
-			strings.HasPrefix(err.Error(), "ExampleError\tStackTrace: expected1.go:15 -> expected2.go:9 -> expected3.go:15 -> expected4.go:6"),
+			strings.HasPrefix(err.Error(), fmt.Sprintf("ExampleError\tStackTrace: expected1.go:%d -> expected2.go:%d -> expected3.go:%d -> expected4.go:%d", lines[0], lines[1], lines[2], lines[3])),
 		)
 
 		_, ok = err.(*pkg3.ExampleError)
@@ -55,13 +57,14 @@ func TestErrStack(t *testing.T) {
 		require.Equal(t, "expected3.go", frames[2].File)
 		require.Equal(t, "expected4.go", frames[3].File)
 
-		require.Equal(t, 23, frames[0].Line)
-		require.Equal(t, 13, frames[1].Line)
-		require.Equal(t, 19, frames[2].Line)
-		require.Equal(t, 10, frames[3].Line)
+		lines := []int{24, 13, 19, 10}
+		require.Equal(t, lines[0], frames[0].Line)
+		require.Equal(t, lines[1], frames[1].Line)
+		require.Equal(t, lines[2], frames[2].Line)
+		require.Equal(t, lines[3], frames[3].Line)
 
 		require.True(t,
-			strings.HasPrefix(err.Error(), "VariableError\tStackTrace: expected1.go:23 -> expected2.go:13 -> expected3.go:19 -> expected4.go:10"),
+			strings.HasPrefix(err.Error(), fmt.Sprintf("VariableError\tStackTrace: expected1.go:%d -> expected2.go:%d -> expected3.go:%d -> expected4.go:%d", lines[0], lines[1], lines[2], lines[3])),
 		)
 
 		require.Equal(t, pkg3.ErrVariable, terr.UnWrap(err))
@@ -83,13 +86,14 @@ func TestErrStack(t *testing.T) {
 		require.Equal(t, "expected3.go", frames[2].File)
 		require.Equal(t, "expected4.go", frames[3].File)
 
-		require.Equal(t, 23, frames[0].Line)
-		require.Equal(t, 17, frames[1].Line)
-		require.Equal(t, 23, frames[2].Line)
-		require.Equal(t, 14, frames[3].Line)
+		lines := []int{24, 17, 23, 14}
+		require.Equal(t, lines[0], frames[0].Line)
+		require.Equal(t, lines[1], frames[1].Line)
+		require.Equal(t, lines[2], frames[2].Line)
+		require.Equal(t, lines[3], frames[3].Line)
 
 		require.True(t,
-			strings.HasPrefix(err.Error(), "VariableError\tStackTrace: expected1.go:23 -> expected2.go:17 -> expected3.go:23 -> expected4.go:14"),
+			strings.HasPrefix(err.Error(), fmt.Sprintf("VariableError\tStackTrace: expected1.go:%d -> expected2.go:%d -> expected3.go:%d -> expected4.go:%d", lines[0], lines[1], lines[2], lines[3])),
 		)
 
 		require.Equal(t, pkg3.ErrVariable, terr.UnWrap(err))

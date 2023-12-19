@@ -2,10 +2,10 @@ package cchan_test
 
 import (
 	"errors"
-	"goutils/cchan"
 	"testing"
 	"time"
 
+	"github.com/jae2274/goutils/cchan"
 	"github.com/stretchr/testify/require"
 )
 

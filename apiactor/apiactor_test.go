@@ -1,10 +1,10 @@
 package apiactor_test
 
 import (
-	"goutils/apiactor"
 	"testing"
 	"time"
 
+	"github.com/jae2274/goutils/apiactor"
 	"github.com/stretchr/testify/require"
 )
 
