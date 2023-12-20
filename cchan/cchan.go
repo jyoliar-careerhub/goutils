@@ -59,6 +59,29 @@ func ReceiveOrQuit[T any, QUIT any](receiveChan <-chan T, quit <-chan QUIT) (*T,
 	}
 }
 
+// 채널 내부의 데이터를 소진하게 될 수 있으므로 주의한다.
+func WaitClosed[T any](ch <-chan T) {
+	for {
+		_, ok := <-ch
+		if !ok {
+			return
+		}
+	}
+}
+
+// 채널 내부의 데이터를 소진하게 될 수 있으므로 주의한다.
+func IsClosed[T any](ch <-chan T) bool {
+	select {
+	case _, ok := <-ch:
+		if ok {
+			return false
+		}
+		return true
+	default:
+		return false
+	}
+}
+
 func SafeClose[T any](ch chan T) {
 	select {
 	case _, ok := <-ch:
