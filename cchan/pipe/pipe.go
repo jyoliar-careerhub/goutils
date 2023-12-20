@@ -35,6 +35,10 @@ type Step[INPUT, OUTPUT any, ERROR error] struct {
 	Action     func(INPUT) (OUTPUT, ERROR)
 }
 
+func NewStep[INPUT, OUTPUT any, ERROR error](bufferSize *int, action func(INPUT) (OUTPUT, ERROR)) Step[INPUT, OUTPUT, ERROR] {
+	return Step[INPUT, OUTPUT, ERROR]{bufferSize, action}
+}
+
 func Pipeline2[INPUT any, M1 any, OUTPUT any, ERROR error, QUIT any](inputChan <-chan INPUT, quitChan <-chan QUIT,
 	errBufferSize int,
 	step1 Step[INPUT, M1, ERROR],
