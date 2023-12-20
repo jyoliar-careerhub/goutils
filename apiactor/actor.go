@@ -3,7 +3,6 @@ package apiactor
 import (
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net/http"
 	"time"
@@ -12,18 +11,18 @@ import (
 )
 
 type ApiActor struct {
-	rjChan    chan *requestJob
-	minDelay  int64
-	isStarted bool
+	rjChan   chan *requestJob
+	minDelay int64
 }
 
-func NewApiActor(minDelay int64) *ApiActor {
-	apiActor := ApiActor{
+func NewApiActor[QUIT any](minDelay int64, quitChan <-chan QUIT) *ApiActor {
+	apiActor := &ApiActor{
 		rjChan:   make(chan *requestJob),
 		minDelay: minDelay,
 	}
+	go run(apiActor, quitChan)
 
-	return &apiActor
+	return apiActor
 }
 
 type Request struct {
@@ -50,15 +49,6 @@ type requestJob struct {
 type result struct {
 	reader io.ReadCloser
 	err    error
-}
-
-func Run[QUIT any](a *ApiActor, quitChan <-chan QUIT) {
-	if a.isStarted {
-		log.Fatal("ApiActor is already started")
-	}
-
-	go run(a, quitChan)
-	a.isStarted = true
 }
 
 func run[QUIT any](a *ApiActor, quitChan <-chan QUIT) {
@@ -103,9 +93,6 @@ func run[QUIT any](a *ApiActor, quitChan <-chan QUIT) {
 }
 
 func (a *ApiActor) Call(r *Request) (io.ReadCloser, error) {
-	if !a.isStarted {
-		panic("ApiActor is not started")
-	}
 
 	httpReq, err := converthttpReq(r)
 	if err != nil {
