@@ -39,6 +39,11 @@ func NewStep[INPUT, OUTPUT any, ERROR error](bufferSize *int, action func(INPUT)
 	return Step[INPUT, OUTPUT, ERROR]{bufferSize, action}
 }
 
+//Pipeline은 여러개의 Step을 연속적으로 연결하여 하나의 채널로 연결한다.
+//각각의 step은 quitChan의 종료 트리거가 별도로 전파되고 종료되므로, 아직 종료되지 않은 step이 존재할 수 있다.
+//모든 step이 종료되기를 기다리지 않으므로, 비정상 종료시에만 quitChan을 트리거하도록 하며, 정상 종료를 의도하는 경우 inputChan을 닫아야 한다.
+//Action 내부에서 Blocking되어 있는 동안은 inputChan과 quitChan의 종료 트리거가 전파되지 않는다.
+
 func Pipeline2[INPUT any, M1 any, OUTPUT any, ERROR error, QUIT any](inputChan <-chan INPUT, quitChan <-chan QUIT,
 	errBufferSize int,
 	step1 Step[INPUT, M1, ERROR],
