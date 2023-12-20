@@ -100,10 +100,45 @@ func TestPipe(t *testing.T) {
 		require.Len(t, outputChan, 3)
 	})
 
+	t.Run("Quit Test", func(t *testing.T) {
+		inputChan := make(chan string)
+		quitChan := make(chan bool)
+
+		stepNamesChan := make(chan string, 3)
+
+		makeStep := func(step string) pipe.Step[string, string, error] {
+			return pipe.NewStep(nil,
+				func(m string) (string, error) {
+					time.Sleep(time.Second * 5)
+
+					stepNamesChan <- step
+
+					return m, nil
+				})
+		}
+
+		resultChan, _ := pipe.Pipeline3(inputChan, quitChan, 10, makeStep("step1"), makeStep("step2"), makeStep("step3"))
+
+		inputChan <- "Hello!"
+
+		close(quitChan)
+		time.Sleep(time.Millisecond * 100) // quitChan 트리거를 전파 대기
+
+		//각각의 step은 quitChan의 종료 트리거가 별도로 전파되고 종료되므로, 아직 종료되지 않은 step이 존재한다.
+		require.True(t, isClose(resultChan))
+
+		require.Len(t, stepNamesChan, 0)
+		time.Sleep(time.Second * 6) // 모든 step이 종료되기를 기다림
+
+		require.Len(t, stepNamesChan, 1)
+		//Action 내부에서 Blocking되어 있었던 step1이 종료되지 않은 상태였음을 알 수 있다.
+		//Action 내부에서 Blocking되어 있는 동안은 quitChan의 종료 트리거가 전파되지 않는다.
+		require.Equal(t, "step1", <-stepNamesChan)
+	})
 }
 
 func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []error) {
-	checkValidChan := make(chan DivideTarget)
+	inputChan := make(chan DivideTarget)
 	quitChan := make(chan bool)
 
 	step1 := pipe.NewStep(nil,
@@ -123,10 +158,10 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	step3 := pipe.NewStep(nil, sum)
 	step4 := pipe.NewStep(nil, square)
 
-	resultChan, errChan := pipe.Pipeline4(checkValidChan, quitChan, 10, step1, step2, step3, step4)
+	resultChan, errChan := pipe.Pipeline4(inputChan, quitChan, 10, step1, step2, step3, step4)
 
 	for _, input := range inputs {
-		checkValidChan <- input
+		inputChan <- input
 	}
 
 	for _, expectedOutput := range expectedOutputs {
@@ -144,7 +179,7 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	require.Len(t, resultChan, 0)
 	require.Len(t, errChan, 0)
 
-	close(checkValidChan)
+	close(inputChan)
 	time.Sleep(time.Millisecond * 100) // 파이프라인이 종료되기를 기다림
 	require.True(t, isClose(resultChan))
 }
