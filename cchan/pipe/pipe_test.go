@@ -64,8 +64,8 @@ func TestPipe(t *testing.T) {
 		errChan := make(chan error, 10)
 		quitChan := make(chan bool)
 
-		outputChan := pipe.Pipe(inputChan, errChan, quitChan, nil, square) //outputChan은 버퍼가 없으므로 해당 채널의 데이터를 수신하지 않으면 전송자가 블록된다.
-		fmt.Println(outputChan)                                            //컴파일 에러를 방지하기 위해 사용한 코드
+		outputChan := pipe.Transform(inputChan, errChan, quitChan, nil, square) //outputChan은 버퍼가 없으므로 해당 채널의 데이터를 수신하지 않으면 전송자가 블록된다.
+		fmt.Println(outputChan)                                                 //컴파일 에러를 방지하기 위해 사용한 코드
 
 		inputChan <- 3
 		select {
@@ -83,8 +83,8 @@ func TestPipe(t *testing.T) {
 		errChan := make(chan error, 10)
 		quitChan := make(chan bool)
 
-		outputChan := pipe.Pipe(inputChan, errChan, quitChan, ptr.P(3), square) //outputChan의 버퍼는 3개이다.
-		fmt.Println(outputChan)                                                 //컴파일 에러를 방지하기 위해 사용한 코드
+		outputChan := pipe.Transform(inputChan, errChan, quitChan, ptr.P(3), square) //outputChan의 버퍼는 3개이다.
+		fmt.Println(outputChan)                                                      //컴파일 에러를 방지하기 위해 사용한 코드
 
 		for i := 0; i < 4; i++ { //inputChan은 버퍼가 존재하지 않음에 유의한다. 4개까지 전송이 가능한 이유는 outputChan에 3개까지 전송 이후부터 블록되기 때문이다.
 			inputChan <- 3 //버퍼가 3개이므로, 3개의 데이터를 전송해도 block되지 않는다.
@@ -106,7 +106,7 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	checkValidChan := make(chan DivideTarget)
 	quitChan := make(chan bool)
 
-	chain1 := pipe.Chain[DivideTarget, *DivideTarget]{
+	step1 := pipe.Step[DivideTarget, *DivideTarget]{
 		Action: func(target DivideTarget) (*DivideTarget, error) {
 			a, b, err := checkPositive(target.denominator, target.numerator)
 			if err != nil {
@@ -115,15 +115,15 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 			return &DivideTarget{a, b}, nil
 		},
 	}
-	chain2 := pipe.Chain[*DivideTarget, *sumTarget]{
+	step2 := pipe.Step[*DivideTarget, *sumTarget]{
 		Action: func(dt *DivideTarget) (*sumTarget, error) {
 			return divide(dt.denominator, dt.numerator)
 		},
 	}
-	chain3 := pipe.Chain[*sumTarget, int]{Action: sum}
-	chain4 := pipe.Chain[int, int]{Action: square}
+	step3 := pipe.Step[*sumTarget, int]{Action: sum}
+	step4 := pipe.Step[int, int]{Action: square}
 
-	resultChan, errChan := pipe.Chain4(checkValidChan, quitChan, 10, chain1, chain2, chain3, chain4)
+	resultChan, errChan := pipe.Pipeline4(checkValidChan, quitChan, 10, step1, step2, step3, step4)
 
 	for _, input := range inputs {
 		checkValidChan <- input
