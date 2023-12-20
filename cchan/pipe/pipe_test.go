@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jae2274/goutils/cchan"
 	"github.com/jae2274/goutils/cchan/pipe"
 	"github.com/jae2274/goutils/ptr"
 	"github.com/stretchr/testify/require"
@@ -123,7 +124,8 @@ func TestPipe(t *testing.T) {
 
 		close(quitChan)
 		time.Sleep(time.Millisecond * 100) // quitChan 트리거를 전파 대기
-		require.True(t, isClose(resultChan))
+		isClosed, _ := cchan.IsClosed(resultChan)
+		require.True(t, isClosed)
 
 		require.Len(t, stepNamesChan, 0)
 		time.Sleep(time.Second * 6) // 모든 step이 종료되기를 기다림
@@ -178,7 +180,8 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 
 	close(inputChan)
 	time.Sleep(time.Millisecond * 100) // 파이프라인이 종료되기를 기다림
-	require.True(t, isClose(resultChan))
+	isClosed, _ := cchan.IsClosed(resultChan)
+	require.True(t, isClosed)
 }
 
 type errNagativeNumber struct {
@@ -230,15 +233,4 @@ func sum(target *sumTarget) (int, error) {
 
 func square(a int) (int, error) {
 	return a * a, nil
-}
-func isClose[T any](c <-chan T) bool {
-	select {
-	case _, ok := <-c:
-		if ok {
-			return false
-		}
-		return true
-	default:
-		return false
-	}
 }
