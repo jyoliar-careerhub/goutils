@@ -106,7 +106,7 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	checkValidChan := make(chan DivideTarget)
 	quitChan := make(chan bool)
 
-	step1 := pipe.Step[DivideTarget, *DivideTarget]{
+	step1 := pipe.Step[DivideTarget, *DivideTarget, error]{
 		Action: func(target DivideTarget) (*DivideTarget, error) {
 			a, b, err := checkPositive(target.denominator, target.numerator)
 			if err != nil {
@@ -115,13 +115,13 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 			return &DivideTarget{a, b}, nil
 		},
 	}
-	step2 := pipe.Step[*DivideTarget, *sumTarget]{
+	step2 := pipe.Step[*DivideTarget, *sumTarget, error]{
 		Action: func(dt *DivideTarget) (*sumTarget, error) {
 			return divide(dt.denominator, dt.numerator)
 		},
 	}
-	step3 := pipe.Step[*sumTarget, int]{Action: sum}
-	step4 := pipe.Step[int, int]{Action: square}
+	step3 := pipe.Step[*sumTarget, int, error]{Action: sum}
+	step4 := pipe.Step[int, int, error]{Action: square}
 
 	resultChan, errChan := pipe.Pipeline4(checkValidChan, quitChan, 10, step1, step2, step3, step4)
 

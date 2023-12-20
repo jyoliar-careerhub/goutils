@@ -1,12 +1,13 @@
 package cchan
 
 import (
+	"errors"
 	"log"
 	"time"
 )
 
-func SendResult[T any, QUIT any](result T, err error, resultChan chan<- T, errChan chan<- error, quitChan <-chan QUIT) bool {
-	if err != nil {
+func SendResult[T any, ERROR error, QUIT any](result T, err ERROR, resultChan chan<- T, errChan chan<- ERROR, quitChan <-chan QUIT) bool {
+	if !errors.Is(err, nil) {
 		ok := SendOrQuit(err, errChan, quitChan)
 		return ok
 	} else {
@@ -15,8 +16,8 @@ func SendResult[T any, QUIT any](result T, err error, resultChan chan<- T, errCh
 	}
 }
 
-func SendResults[T any, QUIT any](results []T, err error, resultChan chan<- T, errChan chan<- error, quitChan <-chan QUIT) bool {
-	if err != nil {
+func SendResults[T any, ERROR error, QUIT any](results []T, err ERROR, resultChan chan<- T, errChan chan<- ERROR, quitChan <-chan QUIT) bool {
+	if !errors.Is(err, nil) {
 		ok := SendOrQuit(err, errChan, quitChan)
 		return ok
 	} else {
@@ -69,7 +70,7 @@ func SafeClose[T any](ch chan T) {
 	}
 }
 
-func TooMuchError[QUIT any](periodErrCount uint, limitErrPeriod time.Duration, errChan <-chan error, quitChan chan QUIT) {
+func TooMuchError[ERROR error, QUIT any](periodErrCount uint, limitErrPeriod time.Duration, errChan <-chan ERROR, quitChan chan QUIT) {
 	defer func() {
 		log.Default().Println("TooMuchError closed")
 	}()
