@@ -1,13 +1,19 @@
 package cchan
 
 import (
+	"errors"
 	"log"
 	"time"
 )
 
-func SendResult[T any, ERROR error, QUIT any](result T, err *ERROR, resultChan chan<- T, errChan chan<- ERROR, quitChan <-chan QUIT) bool {
-	if err != nil {
-		ok := SendOrQuit(*err, errChan, quitChan)
+func IsNilErr[ERROR error](target ERROR) bool {
+	sampleErr := new(ERROR)
+	return errors.Is(target, *sampleErr)
+}
+
+func SendResult[T any, ERROR error, QUIT any](result T, err ERROR, resultChan chan<- T, errChan chan<- ERROR, quitChan <-chan QUIT) bool {
+	if !IsNilErr(err) {
+		ok := SendOrQuit(err, errChan, quitChan)
 		return ok
 	} else {
 		ok := SendOrQuit(result, resultChan, quitChan)
@@ -15,9 +21,9 @@ func SendResult[T any, ERROR error, QUIT any](result T, err *ERROR, resultChan c
 	}
 }
 
-func SendResults[T any, ERROR error, QUIT any](results []T, err *ERROR, resultChan chan<- T, errChan chan<- ERROR, quitChan <-chan QUIT) bool {
-	if err != nil {
-		ok := SendOrQuit(*err, errChan, quitChan)
+func SendResults[T any, ERROR error, QUIT any](results []T, err ERROR, resultChan chan<- T, errChan chan<- ERROR, quitChan <-chan QUIT) bool {
+	if !IsNilErr(err) {
+		ok := SendOrQuit(err, errChan, quitChan)
 		return ok
 	} else {
 		for _, result := range results {
