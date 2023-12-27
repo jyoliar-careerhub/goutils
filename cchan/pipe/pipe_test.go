@@ -117,8 +117,8 @@ func TestPipe(t *testing.T) {
 					return m, nil
 				})
 		}
-
-		resultChan, _ := pipe.Pipeline3(inputChan, quitChan, 10, makeStep("step1"), makeStep("step2"), makeStep("step3"))
+		errChan := make(chan error, 10)
+		resultChan := pipe.Pipeline3(inputChan, errChan, quitChan, 10, makeStep("step1"), makeStep("step2"), makeStep("step3"))
 
 		inputChan <- "Hello!"
 
@@ -157,7 +157,8 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	step3 := pipe.NewStep(nil, sum)
 	step4 := pipe.NewStep(nil, square)
 
-	resultChan, errChan := pipe.Pipeline4(inputChan, quitChan, 10, step1, step2, step3, step4)
+	errChan := make(chan error, 10)
+	resultChan := pipe.Pipeline4(inputChan, errChan, quitChan, 10, step1, step2, step3, step4)
 
 	for _, input := range inputs {
 		inputChan <- input
