@@ -44,7 +44,6 @@ func NewStep[INPUT, OUTPUT any, ERROR error](bufferSize *int, action func(INPUT)
 // 모든 step이 종료되기를 기다리지 않으므로, 비정상 종료시에만 quitChan을 트리거하도록 하며, 정상 종료를 의도하는 경우 inputChan을 닫아야 한다.
 // Action 내부에서 Blocking되어 있는 동안은 inputChan과 quitChan의 종료 트리거가 전파되지 않는다.
 func Pipeline2[INPUT any, M1 any, OUTPUT any, ERROR error, QUIT any](inputChan <-chan INPUT, errChan chan<- ERROR, quitChan <-chan QUIT,
-	errBufferSize int,
 	step1 Step[INPUT, M1, ERROR],
 	step2 Step[M1, OUTPUT, ERROR],
 ) <-chan OUTPUT {
@@ -55,22 +54,20 @@ func Pipeline2[INPUT any, M1 any, OUTPUT any, ERROR error, QUIT any](inputChan <
 
 func Pipeline3[INPUT any, M1 any, M2 any, OUTPUT any, ERROR error, QUIT any](
 	inputChan <-chan INPUT, errChan chan<- ERROR, quitChan <-chan QUIT,
-	errBufferSize int,
 	step1 Step[INPUT, M1, ERROR],
 	step2 Step[M1, M2, ERROR],
 	step3 Step[M2, OUTPUT, ERROR],
 ) <-chan OUTPUT {
-	pipeChan := Pipeline2(inputChan, errChan, quitChan, errBufferSize, step1, step2)
+	pipeChan := Pipeline2(inputChan, errChan, quitChan, step1, step2)
 	return Transform(pipeChan, errChan, quitChan, step3.BufferSize, step3.Action)
 }
 
 func Pipeline4[INPUT any, M1 any, M2 any, M3 any, OUTPUT any, ERROR error, QUIT any](inputChan <-chan INPUT, errChan chan<- ERROR, quitChan <-chan QUIT,
-	errBufferSize int,
 	step1 Step[INPUT, M1, ERROR],
 	step2 Step[M1, M2, ERROR],
 	step3 Step[M2, M3, ERROR],
 	step4 Step[M3, OUTPUT, ERROR],
 ) <-chan OUTPUT {
-	pipeChan := Pipeline3(inputChan, errChan, quitChan, errBufferSize, step1, step2, step3)
+	pipeChan := Pipeline3(inputChan, errChan, quitChan, step1, step2, step3)
 	return Transform(pipeChan, errChan, quitChan, step4.BufferSize, step4.Action)
 }
