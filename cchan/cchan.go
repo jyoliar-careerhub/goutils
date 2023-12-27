@@ -1,18 +1,14 @@
 package cchan
 
 import (
-	"errors"
 	"log"
 	"time"
+
+	"github.com/jae2274/goutils/ptr"
 )
 
-func IsNilErr[ERROR error](target ERROR) bool {
-	sampleErr := new(ERROR)
-	return errors.Is(target, *sampleErr)
-}
-
 func SendResult[T any, ERROR error, QUIT any](result T, err ERROR, resultChan chan<- T, errChan chan<- ERROR, quitChan <-chan QUIT) bool {
-	if !IsNilErr(err) {
+	if !ptr.IsNil(err) {
 		ok := SendOrQuit(err, errChan, quitChan)
 		return ok
 	} else {
@@ -22,7 +18,7 @@ func SendResult[T any, ERROR error, QUIT any](result T, err ERROR, resultChan ch
 }
 
 func SendResults[T any, ERROR error, QUIT any](results []T, err ERROR, resultChan chan<- T, errChan chan<- ERROR, quitChan <-chan QUIT) bool {
-	if !IsNilErr(err) {
+	if !ptr.IsNil(err) {
 		ok := SendOrQuit(err, errChan, quitChan)
 		return ok
 	} else {

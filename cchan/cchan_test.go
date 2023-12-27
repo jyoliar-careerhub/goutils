@@ -82,7 +82,8 @@ func TestSendResult(t *testing.T) {
 		errChan := make(chan *SampleError, 100)
 		quitChan := make(chan QuitSignal)
 
-		ok := cchan.SendResult(SampleResult{}, nil, resultChan, errChan, quitChan)
+		var err *SampleError = nil
+		ok := cchan.SendResult(SampleResult{}, err, resultChan, errChan, quitChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 1)
 		assertLength(t, errChan, 0)
