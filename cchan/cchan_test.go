@@ -19,7 +19,7 @@ func TestSendResult(t *testing.T) {
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 0)
 
-		ok = cchan.SendResult(SampleResult{}, errSample, resultChan, errChan, quitChan)
+		ok = cchan.SendResult(SampleResult{}, &errSample, resultChan, errChan, quitChan)
 		require.False(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 0)
@@ -29,7 +29,7 @@ func TestSendResult(t *testing.T) {
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 0)
 
-		ok = cchan.SendResults([]SampleResult{{}, {}}, errSample, resultChan, errChan, quitChan)
+		ok = cchan.SendResults([]SampleResult{{}, {}}, &errSample, resultChan, errChan, quitChan)
 		require.False(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 0)
@@ -38,12 +38,12 @@ func TestSendResult(t *testing.T) {
 	t.Run("quitChan이 트리거되지 않고 error가 존재하면 error가 errChan으로 전달되고 result는 전달되지 않는다.", func(t *testing.T) {
 		resultChan, errChan, quitChan := initChans[QuitSignal]()
 
-		ok := cchan.SendResult(SampleResult{}, errSample, resultChan, errChan, quitChan)
+		ok := cchan.SendResult(SampleResult{}, &errSample, resultChan, errChan, quitChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 1)
 
-		ok = cchan.SendResults([]SampleResult{{}, {}}, errSample, resultChan, errChan, quitChan)
+		ok = cchan.SendResults([]SampleResult{{}, {}}, &errSample, resultChan, errChan, quitChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 1)
@@ -62,7 +62,27 @@ func TestSendResult(t *testing.T) {
 		assertLength(t, resultChan, 2)
 		assertLength(t, errChan, 0)
 	})
+
+	t.Run("특정 타입의 error가 nil일 경우에도 위와 같은 동작을 한다.", func(t *testing.T) {
+		resultChan := make(chan SampleResult, 100)
+		errChan := make(chan *SampleError, 100)
+		quitChan := make(chan QuitSignal)
+
+		ok := cchan.SendResult(SampleResult{}, nil, resultChan, errChan, quitChan)
+		require.True(t, ok)
+		assertLength(t, resultChan, 1)
+		assertLength(t, errChan, 0)
+
+		ok = cchan.SendResults([]SampleResult{{}, {}}, nil, resultChan, errChan, quitChan)
+		require.True(t, ok)
+		assertLength(t, resultChan, 2)
+		assertLength(t, errChan, 0)
+	})
 }
+
+type SampleError struct{}
+
+func (e SampleError) Error() string { return "Sample Error caused!!!" }
 
 func TestReceiveOrQuit(t *testing.T) {
 	t.Run("quitChan이 트리거되면 false를 반환하고 data는 nil을 리턴한다.", func(t *testing.T) {
