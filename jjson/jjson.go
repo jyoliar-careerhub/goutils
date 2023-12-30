@@ -11,6 +11,11 @@ func Unmarshal[T any](data []byte) (*T, error) {
 	return value, err
 }
 
+func Unmarshal2[T any](data []byte, value *T) (*T, error) {
+	err := json.Unmarshal(data, value)
+	return value, err
+}
+
 func UnmarshalReader[T any](reader io.Reader) (*T, error) {
 	value := new(T)
 	err := json.NewDecoder(reader).Decode(value)
