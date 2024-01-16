@@ -2,6 +2,7 @@ package llog
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,24 +16,25 @@ import (
 func TestLLog(t *testing.T) {
 
 	t.Run("Default Log functions", func(t *testing.T) {
+		ctx := context.TODO()
 		t.Run("Fatal", func(t *testing.T) {
-			checkStdoutLog(t, func() error { return Fatal("hello world") }, Msg("hello world").Level(FATAL))
+			checkStdoutLog(t, func() error { return Fatal(ctx, "hello world") }, Msg("hello world").Level(FATAL))
 		})
 
 		t.Run("Error", func(t *testing.T) {
-			checkStdoutLog(t, func() error { return Error("hello world") }, Msg("hello world").Level(ERROR))
+			checkStdoutLog(t, func() error { return Error(ctx, "hello world") }, Msg("hello world").Level(ERROR))
 		})
 
 		t.Run("Warn", func(t *testing.T) {
-			checkStdoutLog(t, func() error { return Warn("hello world") }, Msg("hello world").Level(WARN))
+			checkStdoutLog(t, func() error { return Warn(ctx, "hello world") }, Msg("hello world").Level(WARN))
 		})
 
 		t.Run("Info", func(t *testing.T) {
-			checkStdoutLog(t, func() error { return Info("hello world") }, Msg("hello world").Level(INFO))
+			checkStdoutLog(t, func() error { return Info(ctx, "hello world") }, Msg("hello world").Level(INFO))
 		})
 
 		t.Run("Debug", func(t *testing.T) {
-			checkStdoutLog(t, func() error { return Debug("hello world") }, Msg("hello world").Level(DEBUG))
+			checkStdoutLog(t, func() error { return Debug(ctx, "hello world") }, Msg("hello world").Level(DEBUG))
 		})
 	})
 
@@ -109,6 +111,7 @@ func TestLLog(t *testing.T) {
 	})
 
 	t.Run("Logging with default datas", func(t *testing.T) {
+		ctx := context.TODO()
 		resetDefault := func() {
 			SetDefaultDatas(make(map[string]any))
 			SetDefaultTags([]string{})
@@ -118,37 +121,38 @@ func TestLLog(t *testing.T) {
 			SetDefaultDatas(map[string]any{"key1": "value1", "key2": "value2"})
 			// checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("key3", "value3").Log() }, Msg("hello world").Level(INFO).Datas(map[string]any{"key1": "value1", "key2": "value2", "key3": "value3"}))
 			// checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("key2", "value2_modified").Log() }, Msg("hello world").Level(INFO).Datas(map[string]any{"key1": "value1", "key2": "value2_modified"}))
-			checkStdoutLog(t, func() error { return Debug("hello world") }, Msg("hello world").Level(DEBUG).Datas(map[string]any{"key1": "value1", "key2": "value2"}))
+			checkStdoutLog(t, func() error { return Debug(ctx, "hello world") }, Msg("hello world").Level(DEBUG).Datas(map[string]any{"key1": "value1", "key2": "value2"}))
 		})
 
 		t.Run("DefaultData", func(t *testing.T) {
 			resetDefault()
 			SetDefaultData("key1", "value1")
-			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("key2", "value2").Log() }, Msg("hello world").Level(INFO).Datas(map[string]any{"key1": "value1", "key2": "value2"}))
-			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("key1", "value1_modified").Log() }, Msg("hello world").Level(INFO).Datas(map[string]any{"key1": "value1_modified"}))
-			checkStdoutLog(t, func() error { return Debug("hello world") }, Msg("hello world").Level(DEBUG).Datas(map[string]any{"key1": "value1"}))
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("key2", "value2").Log(ctx) }, Msg("hello world").Level(INFO).Datas(map[string]any{"key1": "value1", "key2": "value2"}))
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("key1", "value1_modified").Log(ctx) }, Msg("hello world").Level(INFO).Datas(map[string]any{"key1": "value1_modified"}))
+			checkStdoutLog(t, func() error { return Debug(ctx, "hello world") }, Msg("hello world").Level(DEBUG).Datas(map[string]any{"key1": "value1"}))
 		})
 
 		t.Run("DefaultTags", func(t *testing.T) {
 			resetDefault()
 			SetDefaultTags([]string{"tag1", "tag2"})
-			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag3").Log() }, Msg("hello world").Level(INFO).Tags("tag1", "tag2", "tag3"))
-			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag2").Log() }, Msg("hello world").Level(INFO).Tags("tag1", "tag2"))
-			checkStdoutLog(t, func() error { return Debug("hello world") }, Msg("hello world").Level(DEBUG).Tags("tag1", "tag2"))
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag3").Log(ctx) }, Msg("hello world").Level(INFO).Tags("tag1", "tag2", "tag3"))
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag2").Log(ctx) }, Msg("hello world").Level(INFO).Tags("tag1", "tag2"))
+			checkStdoutLog(t, func() error { return Debug(ctx, "hello world") }, Msg("hello world").Level(DEBUG).Tags("tag1", "tag2"))
 		})
 
 		t.Run("DefaultTag", func(t *testing.T) {
 			resetDefault()
 			SetDefaultTag("tag1")
-			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag2").Log() }, Msg("hello world").Level(INFO).Tags("tag1", "tag2"))
-			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag1").Log() }, Msg("hello world").Level(INFO).Tags("tag1"))
-			checkStdoutLog(t, func() error { return Debug("hello world") }, Msg("hello world").Level(DEBUG).Tags("tag1"))
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag2").Log(ctx) }, Msg("hello world").Level(INFO).Tags("tag1", "tag2"))
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag1").Log(ctx) }, Msg("hello world").Level(INFO).Tags("tag1"))
+			checkStdoutLog(t, func() error { return Debug(ctx, "hello world") }, Msg("hello world").Level(DEBUG).Tags("tag1"))
 		})
 	})
 }
 
 func checkStdoutLogErr(t *testing.T, err error, expected *LLogBuilder) {
-	logBuf, err := interceptStdout(func() error { return LogErr(err) })
+	ctx := context.TODO()
+	logBuf, err := interceptStdout(func() error { return LogErr(ctx, err) })
 	require.NoError(t, err)
 
 	var actualLog LLog
@@ -159,7 +163,8 @@ func checkStdoutLogErr(t *testing.T, err error, expected *LLogBuilder) {
 }
 
 func checkStdoutLogFormat(t *testing.T, expected *LLogBuilder) {
-	logBuf, err := interceptStdout(func() error { return expected.Log() })
+	ctx := context.TODO()
+	logBuf, err := interceptStdout(func() error { return expected.Log(ctx) })
 	require.NoError(t, err)
 	now := time.Now()
 

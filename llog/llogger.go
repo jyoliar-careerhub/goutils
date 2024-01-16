@@ -1,6 +1,7 @@
 package llog
 
 import (
+	"context"
 	"slices"
 	"time"
 )
@@ -9,35 +10,35 @@ type LLoger interface {
 	Log(llog *LLog) error
 }
 
-func Fatal(msg string) error {
-	return Level(FATAL).Msg(msg).Log()
+func Fatal(ctx context.Context, msg string) error {
+	return Level(FATAL).Msg(msg).Log(ctx)
 }
 
-func Error(msg string) error {
-	return Level(ERROR).Msg(msg).Log()
+func Error(ctx context.Context, msg string) error {
+	return Level(ERROR).Msg(msg).Log(ctx)
 }
 
-func LogErr(err error) error {
+func LogErr(ctx context.Context, err error) error {
 	if llogErr, ok := err.(*LLogError); ok {
-		return llogErr.Log()
+		return llogErr.Log(ctx)
 	} else {
-		return Error(err.Error())
+		return Error(ctx, err.Error())
 	}
 }
 
-func Warn(msg string) error {
-	return Level(WARN).Msg(msg).Log()
+func Warn(ctx context.Context, msg string) error {
+	return Level(WARN).Msg(msg).Log(ctx)
 }
 
-func Info(msg string) error {
-	return Level(INFO).Msg(msg).Log()
+func Info(ctx context.Context, msg string) error {
+	return Level(INFO).Msg(msg).Log(ctx)
 }
 
-func Debug(msg string) error {
-	return Level(DEBUG).Msg(msg).Log()
+func Debug(ctx context.Context, msg string) error {
+	return Level(DEBUG).Msg(msg).Log(ctx)
 }
 
-func Log(llog *LLog) error {
+func Log(ctx context.Context, llog *LLog) error {
 	if llog.Datas == nil {
 		llog.Datas = make(map[string]any)
 	}

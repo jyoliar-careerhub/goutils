@@ -1,6 +1,9 @@
 package llog
 
-import "slices"
+import (
+	"context"
+	"slices"
+)
 
 type LLogError struct {
 	Err   error
@@ -41,6 +44,6 @@ func (l *LLogError) Error() string {
 	return l.Err.Error()
 }
 
-func (l *LLogError) Log() error {
-	return Msg(l.Err.Error()).Level(ERROR).Datas(l.datas).Tags(l.tags...).Log()
+func (l *LLogError) Log(ctx context.Context) error {
+	return Msg(l.Err.Error()).Level(ERROR).Datas(l.datas).Tags(l.tags...).Log(ctx)
 }

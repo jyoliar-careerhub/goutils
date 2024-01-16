@@ -1,6 +1,7 @@
 package llog
 
 import (
+	"context"
 	"slices"
 	"time"
 
@@ -117,10 +118,10 @@ func (l *LLogBuilder) Datas(datas map[string]any) *LLogBuilder {
 	return l
 }
 
-func (logBuilder *LLogBuilder) Log() error {
+func (logBuilder *LLogBuilder) Log(ctx context.Context) error {
 	llog := logBuilder.Build()
 
-	return Log(llog)
+	return Log(ctx, llog)
 }
 
 func (l *LLogBuilder) Build() *LLog {
