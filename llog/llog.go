@@ -31,18 +31,18 @@ func (lt LogTime) MarshalText() (text []byte, err error) {
 }
 
 type LLog struct {
-	Level     LogLevel          `json:"level"`
-	Msg       string            `json:"msg"`
-	Tags      []string          `json:"tags,omitempty"`
-	Datas     map[string]string `json:"datas,omitempty"`
-	CreatedAt LogTime           `json:"createdAt"`
+	Level     LogLevel       `json:"level"`
+	Msg       string         `json:"msg"`
+	Tags      []string       `json:"tags,omitempty"`
+	Datas     map[string]any `json:"datas,omitempty"`
+	CreatedAt LogTime        `json:"createdAt"`
 }
 
 type LLogBuilder struct {
 	level     LogLevel
 	msg       string
 	tags      []string
-	datas     map[string]string
+	datas     map[string]any
 	createdAt LogTime
 }
 
@@ -63,10 +63,10 @@ func Tags(tags ...string) *LLogBuilder {
 }
 
 func Data(key, value string) *LLogBuilder {
-	return &LLogBuilder{datas: map[string]string{key: value}}
+	return &LLogBuilder{datas: map[string]any{key: value}}
 }
 
-func Datas(datas map[string]string) *LLogBuilder {
+func Datas(datas map[string]any) *LLogBuilder {
 	return &LLogBuilder{datas: datas}
 }
 
@@ -97,15 +97,15 @@ func (l *LLogBuilder) Tags(tags ...string) *LLogBuilder {
 	return l
 }
 
-func (l *LLogBuilder) Data(key, value string) *LLogBuilder {
+func (l *LLogBuilder) Data(key string, value any) *LLogBuilder {
 	if l.datas == nil {
-		l.datas = map[string]string{}
+		l.datas = map[string]any{}
 	}
 	l.datas[key] = value
 	return l
 }
 
-func (l *LLogBuilder) Datas(datas map[string]string) *LLogBuilder {
+func (l *LLogBuilder) Datas(datas map[string]any) *LLogBuilder {
 	l.datas = datas
 	return l
 }
