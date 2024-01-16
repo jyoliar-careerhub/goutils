@@ -26,8 +26,16 @@ func (LogLevelValues) Values() []string {
 type LogTime time.Time
 
 func (lt LogTime) MarshalText() (text []byte, err error) {
-
 	return []byte(time.Time(lt).Format(time.RFC3339Nano)), nil
+}
+
+func (lt *LogTime) UnmarshalText(text []byte) error {
+	t, err := time.Parse(time.RFC3339Nano, string(text))
+	if err != nil {
+		return err
+	}
+	*lt = LogTime(t)
+	return nil
 }
 
 type LLog struct {
@@ -39,11 +47,10 @@ type LLog struct {
 }
 
 type LLogBuilder struct {
-	level     LogLevel
-	msg       string
-	tags      []string
-	datas     map[string]any
-	createdAt LogTime
+	level LogLevel
+	msg   string
+	tags  []string
+	datas map[string]any
 }
 
 func Level(level LogLevel) *LLogBuilder {
@@ -110,12 +117,21 @@ func (l *LLogBuilder) Datas(datas map[string]any) *LLogBuilder {
 	return l
 }
 
+func (logBuilder *LLogBuilder) Log() error {
+	if logBuilder.level == "" {
+		logBuilder.Level(INFO)
+	}
+
+	llog := logBuilder.Build()
+	llog.CreatedAt = LogTime(time.Now())
+	return logcfg.lloger.Log(llog)
+}
+
 func (l *LLogBuilder) Build() *LLog {
 	return &LLog{
-		Level:     l.level,
-		Msg:       l.msg,
-		Tags:      l.tags,
-		Datas:     l.datas,
-		CreatedAt: l.createdAt,
+		Level: l.level,
+		Msg:   l.msg,
+		Tags:  l.tags,
+		Datas: l.datas,
 	}
 }

@@ -1,15 +1,27 @@
 package llog
 
-import (
-	"time"
-)
-
 type LLoger interface {
 	Log(llog *LLog) error
 }
 
-func Default(msg string) {
-	Log(Msg(msg))
+func Fatal(msg string) {
+	Level(FATAL).Msg(msg).Log()
+}
+
+func Error(msg string) {
+	Level(ERROR).Msg(msg).Log()
+}
+
+func Warn(msg string) {
+	Level(WARN).Msg(msg).Log()
+}
+
+func Info(msg string) {
+	Level(INFO).Msg(msg).Log()
+}
+
+func Debug(msg string) {
+	Level(DEBUG).Msg(msg).Log()
 }
 
 type logConfig struct {
@@ -23,15 +35,6 @@ func newLogConfig(lloger LLoger) *logConfig {
 }
 
 var logcfg *logConfig = newLogConfig(&StdoutLLogger{})
-
-func Log(llog *LLogBuilder) {
-	llog.createdAt = LogTime(time.Now())
-	if llog.level == "" {
-		llog.level = INFO
-	}
-
-	logcfg.lloger.Log(llog.Build())
-}
 
 func SetLLoger(lloger LLoger) {
 	logcfg.lloger = lloger
