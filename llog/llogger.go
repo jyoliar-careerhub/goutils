@@ -51,19 +51,23 @@ func Log(ctx context.Context, llog *LLog) error {
 		llog.Level = INFO
 	}
 
+	resultDatas := make(map[string]any)
+
+	for k, v := range defaultDatas {
+		resultDatas[k] = v
+	}
+
 	for _, key := range defaultContextDataKeys {
 		if value := ctx.Value(key); value != nil {
-			if _, ok := llog.Datas[key]; !ok {
-				llog.Datas[key] = value
-			}
+			resultDatas[key] = value
 		}
 	}
 
-	for k, v := range defaultDatas {
-		if _, ok := llog.Datas[k]; !ok {
-			llog.Datas[k] = v
-		}
+	for k, v := range llog.Datas {
+		resultDatas[k] = v
 	}
+
+	llog.Datas = resultDatas // override 우선순위 비교: defaultDatas < contextData < llog.Datas
 
 	for _, tag := range defaultTags {
 		if !slices.Contains(llog.Tags, tag) {
