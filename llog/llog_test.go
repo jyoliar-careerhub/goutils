@@ -109,13 +109,14 @@ func TestLLog(t *testing.T) {
 			checkStdoutLogErr(t, NewLLogError(fmt.Errorf("hello world")).Tags("tag1", "tag2").Tag("tag3").Tag("tag4"), Msg("hello world").Level(ERROR).Tags("tag1", "tag2", "tag3", "tag4"))
 		})
 	})
-
+	resetDefault := func() {
+		SetDefaultDatas(make(map[string]any))
+		SetDefaultTags([]string{})
+		SetDefaultContextDatas([]string{})
+	}
 	t.Run("Logging with default datas", func(t *testing.T) {
 		ctx := context.TODO()
-		resetDefault := func() {
-			SetDefaultDatas(make(map[string]any))
-			SetDefaultTags([]string{})
-		}
+
 		t.Run("DefaultDatas", func(t *testing.T) {
 			resetDefault()
 			SetDefaultDatas(map[string]any{"key1": "value1", "key2": "value2"})
@@ -146,6 +147,50 @@ func TestLLog(t *testing.T) {
 			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag2").Log(ctx) }, Msg("hello world").Level(INFO).Tags("tag1", "tag2"))
 			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag1").Log(ctx) }, Msg("hello world").Level(INFO).Tags("tag1"))
 			checkStdoutLog(t, func() error { return Debug(ctx, "hello world") }, Msg("hello world").Level(DEBUG).Tags("tag1"))
+		})
+	})
+
+	t.Run("Logging with context datas", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), "string", "value1")
+		ctx = context.WithValue(ctx, "bool", true)
+		ctx = context.WithValue(ctx, "number", 12)
+
+		t.Run("data is not existed", func(t *testing.T) {
+			resetDefault()
+			SetDefaultContextData("NOT_EXISTED")
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Log(ctx) }, Msg("hello world").Level(INFO))
+		})
+
+		t.Run("data is existed", func(t *testing.T) {
+			t.Run("string", func(t *testing.T) {
+				resetDefault()
+				SetDefaultContextData("string")
+				checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Log(ctx) }, Msg("hello world").Level(INFO).Data("string", "value1"))
+			})
+
+			t.Run("bool", func(t *testing.T) {
+				resetDefault()
+				SetDefaultContextData("bool")
+				checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Log(ctx) }, Msg("hello world").Level(INFO).Data("bool", true))
+			})
+
+			t.Run("number", func(t *testing.T) {
+				resetDefault()
+				SetDefaultContextData("number")
+				checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Log(ctx) }, Msg("hello world").Level(INFO).Data("number", 12))
+			})
+
+			t.Run("string_bool_number", func(t *testing.T) {
+				resetDefault()
+				SetDefaultContextDatas([]string{"string", "bool", "number"})
+				checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Log(ctx) }, Msg("hello world").Level(INFO).Datas(map[string]any{"string": "value1", "bool": true, "number": 12}))
+			})
+
+			t.Run("override context data", func(t *testing.T) {
+				resetDefault()
+				SetDefaultContextData("string")
+				checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("string", "value2_modified").Log(ctx) }, Msg("hello world").Level(INFO).Data("string", "value2_modified"))
+			})
 		})
 	})
 }

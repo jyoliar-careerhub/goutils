@@ -51,6 +51,14 @@ func Log(ctx context.Context, llog *LLog) error {
 		llog.Level = INFO
 	}
 
+	for _, key := range defaultContextDataKeys {
+		if value := ctx.Value(key); value != nil {
+			if _, ok := llog.Datas[key]; !ok {
+				llog.Datas[key] = value
+			}
+		}
+	}
+
 	for k, v := range defaultDatas {
 		if _, ok := llog.Datas[k]; !ok {
 			llog.Datas[k] = v
