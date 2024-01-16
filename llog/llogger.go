@@ -24,10 +24,13 @@ func newLogConfig(lloger LLoger) *logConfig {
 
 var logcfg *logConfig = newLogConfig(&StdoutLLogger{})
 
-func Log(llog *LLog) {
-	llog.createdAt = time.Now()
+func Log(llog *LLogBuilder) {
+	llog.createdAt = LogTime(time.Now())
+	if llog.level == "" {
+		llog.level = INFO
+	}
 
-	logcfg.lloger.Log(llog)
+	logcfg.lloger.Log(llog.Build())
 }
 
 func SetLLoger(lloger LLoger) {
