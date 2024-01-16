@@ -108,6 +108,43 @@ func TestLLog(t *testing.T) {
 		})
 	})
 
+	t.Run("Logging with default datas", func(t *testing.T) {
+		resetDefault := func() {
+			SetDefaultDatas(make(map[string]any))
+			SetDefaultTags([]string{})
+		}
+		t.Run("DefaultDatas", func(t *testing.T) {
+			resetDefault()
+			SetDefaultDatas(map[string]any{"key1": "value1", "key2": "value2"})
+			// checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("key3", "value3").Log() }, Msg("hello world").Level(INFO).Datas(map[string]any{"key1": "value1", "key2": "value2", "key3": "value3"}))
+			// checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("key2", "value2_modified").Log() }, Msg("hello world").Level(INFO).Datas(map[string]any{"key1": "value1", "key2": "value2_modified"}))
+			checkStdoutLog(t, func() error { return Debug("hello world") }, Msg("hello world").Level(DEBUG).Datas(map[string]any{"key1": "value1", "key2": "value2"}))
+		})
+
+		t.Run("DefaultData", func(t *testing.T) {
+			resetDefault()
+			SetDefaultData("key1", "value1")
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("key2", "value2").Log() }, Msg("hello world").Level(INFO).Datas(map[string]any{"key1": "value1", "key2": "value2"}))
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Data("key1", "value1_modified").Log() }, Msg("hello world").Level(INFO).Datas(map[string]any{"key1": "value1_modified"}))
+			checkStdoutLog(t, func() error { return Debug("hello world") }, Msg("hello world").Level(DEBUG).Datas(map[string]any{"key1": "value1"}))
+		})
+
+		t.Run("DefaultTags", func(t *testing.T) {
+			resetDefault()
+			SetDefaultTags([]string{"tag1", "tag2"})
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag3").Log() }, Msg("hello world").Level(INFO).Tags("tag1", "tag2", "tag3"))
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag2").Log() }, Msg("hello world").Level(INFO).Tags("tag1", "tag2"))
+			checkStdoutLog(t, func() error { return Debug("hello world") }, Msg("hello world").Level(DEBUG).Tags("tag1", "tag2"))
+		})
+
+		t.Run("DefaultTag", func(t *testing.T) {
+			resetDefault()
+			SetDefaultTag("tag1")
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag2").Log() }, Msg("hello world").Level(INFO).Tags("tag1", "tag2"))
+			checkStdoutLog(t, func() error { return Msg("hello world").Level(INFO).Tag("tag1").Log() }, Msg("hello world").Level(INFO).Tags("tag1"))
+			checkStdoutLog(t, func() error { return Debug("hello world") }, Msg("hello world").Level(DEBUG).Tags("tag1"))
+		})
+	})
 }
 
 func checkStdoutLogErr(t *testing.T, err error, expected *LLogBuilder) {

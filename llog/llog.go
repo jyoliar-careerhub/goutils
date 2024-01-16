@@ -118,13 +118,9 @@ func (l *LLogBuilder) Datas(datas map[string]any) *LLogBuilder {
 }
 
 func (logBuilder *LLogBuilder) Log() error {
-	if logBuilder.level == "" {
-		logBuilder.Level(INFO)
-	}
-
 	llog := logBuilder.Build()
-	llog.CreatedAt = LogTime(time.Now())
-	return logcfg.lloger.Log(llog)
+
+	return Log(llog)
 }
 
 func (l *LLogBuilder) Build() *LLog {
