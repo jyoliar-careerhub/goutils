@@ -8,7 +8,7 @@ import (
 type StdoutLLogger struct{}
 
 func (l *StdoutLLogger) Log(llog *LLog) error {
-	bytes, err := json.Marshal(llog)
+	bytes, err := json.MarshalIndent(llog, "", "\t")
 	if err != nil {
 		return err
 	}
