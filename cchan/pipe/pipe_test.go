@@ -185,6 +185,33 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	require.True(t, isClosed)
 }
 
+func TestPassThrough(t *testing.T) {
+
+	inputChan := make(chan int)
+	quitChan := make(chan bool)
+
+	sideResults := make([]int, 0)
+	outputChan := pipe.PassThrough(inputChan, quitChan, func(number int) {
+		sideResults = append(sideResults, number*10)
+	})
+
+	go func() {
+		inputChan <- 1
+		inputChan <- 2
+		inputChan <- 3
+		close(inputChan)
+	}()
+
+	require.Equal(t, 1, <-outputChan)
+	require.Equal(t, 2, <-outputChan)
+	require.Equal(t, 3, <-outputChan)
+	isClosed, _ := cchan.IsClosed(inputChan)
+	require.True(t, isClosed)
+
+	require.Len(t, sideResults, 3)
+	require.Equal(t, []int{10, 20, 30}, sideResults)
+}
+
 type errNagativeNumber struct {
 	a, b int
 }

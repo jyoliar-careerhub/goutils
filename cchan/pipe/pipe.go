@@ -71,3 +71,26 @@ func Pipeline4[INPUT any, M1 any, M2 any, M3 any, OUTPUT any, ERROR error, QUIT 
 	pipeChan := Pipeline3(inputChan, errChan, quitChan, step1, step2, step3)
 	return Transform(pipeChan, errChan, quitChan, step4.BufferSize, step4.Action)
 }
+
+func PassThrough[TARGET any, QUIT any](inputChan <-chan TARGET, quitChan <-chan QUIT, action func(TARGET)) <-chan TARGET {
+	outputChan := make(chan TARGET)
+
+	go func() {
+		defer close(outputChan)
+		for {
+			received, ok := cchan.ReceiveOrQuit(inputChan, quitChan)
+			if !ok {
+				return
+			}
+
+			action(*received)
+
+			ok = cchan.SendOrQuit(*received, outputChan, quitChan)
+			if !ok {
+				return
+			}
+		}
+	}()
+
+	return outputChan
+}
