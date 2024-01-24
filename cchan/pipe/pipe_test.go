@@ -183,6 +183,8 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	time.Sleep(time.Millisecond * 100) // 파이프라인이 종료되기를 기다림
 	isClosed, _ := cchan.IsClosed(resultChan)
 	require.True(t, isClosed)
+	isClosed, _ = cchan.IsClosed(quitChan)
+	require.False(t, isClosed) //resultChan의 종료가 quitChan에 의해 트리거되지 않았음을 알 수 있다.
 }
 
 func TestPassThrough(t *testing.T) {
@@ -207,6 +209,8 @@ func TestPassThrough(t *testing.T) {
 	require.Equal(t, 3, <-outputChan)
 	isClosed, _ := cchan.IsClosed(inputChan)
 	require.True(t, isClosed)
+	isClosed, _ = cchan.IsClosed(quitChan)
+	require.False(t, isClosed) //resultChan의 종료가 quitChan에 의해 트리거되지 않았음을 알 수 있다.
 
 	require.Len(t, sideResults, 3)
 	require.Equal(t, []int{10, 20, 30}, sideResults)
