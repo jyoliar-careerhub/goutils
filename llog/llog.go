@@ -43,6 +43,7 @@ type LLog struct {
 	Level     LogLevel       `json:"level"`
 	Msg       string         `json:"msg"`
 	Tags      []string       `json:"tags,omitempty"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
 	Datas     map[string]any `json:"datas,omitempty"`
 	CreatedAt LogTime        `json:"createdAt"`
 }

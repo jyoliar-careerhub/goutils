@@ -51,12 +51,9 @@ func Log(ctx context.Context, llog *LLog) error {
 		llog.Level = INFO
 	}
 
+	llog.Metadata = metadatas
+
 	resultDatas := make(map[string]any)
-
-	for k, v := range defaultDatas {
-		resultDatas[k] = v
-	}
-
 	for _, key := range defaultContextDataKeys {
 		if value := ctx.Value(key); value != nil {
 			resultDatas[key] = value
@@ -67,7 +64,7 @@ func Log(ctx context.Context, llog *LLog) error {
 		resultDatas[k] = v
 	}
 
-	llog.Datas = resultDatas // override 우선순위 비교: defaultDatas < contextData < llog.Datas
+	llog.Datas = resultDatas // override 우선순위 비교: contextData < llog.Datas
 
 	for _, tag := range defaultTags {
 		if !slices.Contains(llog.Tags, tag) {
@@ -97,21 +94,21 @@ func SetDefaultLLoger(lloger LLoger) {
 }
 
 var (
-	defaultDatas           = make(map[string]any)
+	metadatas              = make(map[string]any)
 	defaultTags            = make([]string, 0)
 	defaultContextDataKeys = make([]string, 0)
 )
 
-func SetDefaultDatas(datas map[string]any) {
-	defaultDatas = datas
+func SetMetadatas(datas map[string]any) {
+	metadatas = datas
 }
 
 func SetDefaultTags(tags []string) {
 	defaultTags = tags
 }
 
-func SetDefaultData(key string, value any) {
-	defaultDatas[key] = value
+func SetMetadata(key string, value any) {
+	metadatas[key] = value
 }
 
 func SetDefaultTag(tag string) {
