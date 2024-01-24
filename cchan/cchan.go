@@ -96,7 +96,7 @@ func SafeClose[T any](ch chan T) {
 	}
 }
 
-func TooMuchError[ERROR error, QUIT any](periodErrCount uint, limitErrPeriod time.Duration, errChan <-chan ERROR, quitChan chan QUIT) {
+func TooMuchError[ERROR error](periodErrCount uint, limitErrPeriod time.Duration, errChan <-chan ERROR, tooMuchErrFunc func()) {
 	defer func() {
 		log.Default().Println("TooMuchError closed")
 	}()
@@ -105,42 +105,36 @@ func TooMuchError[ERROR error, QUIT any](periodErrCount uint, limitErrPeriod tim
 	errCaughtTimes := make([]time.Time, periodErrCount)
 
 	for {
-		err, ok := ReceiveOrQuit(errChan, quitChan)
+		_, ok := <-errChan
 		if !ok {
 			return
 		}
 
-		log.Default().Println((*err).Error())
 		errCount++
 		errCaughtTimes = append(errCaughtTimes, time.Now())
+
 		if len(errCaughtTimes) >= int(periodErrCount) {
 			lastErrCaughtTime := errCaughtTimes[len(errCaughtTimes)-1]
 			recentErrCaughtTime := errCaughtTimes[len(errCaughtTimes)-10]
 			errCaughtPeriod := lastErrCaughtTime.Sub(recentErrCaughtTime)
 
 			if errCaughtPeriod.Abs() < limitErrPeriod.Abs() {
-				close(quitChan)
+				tooMuchErrFunc()
 				return
 			}
 			errCaughtTimes = errCaughtTimes[1:]
 		}
-
 	}
 }
 
-func Timeout[DATA any, QUIT any](initDuration, duration time.Duration, processedChan <-chan DATA, quitChan chan QUIT) {
-	defer func() {
-		log.Default().Println("Timeout closed")
-	}()
+func Timeout[DATA any](initDuration, duration time.Duration, processedChan <-chan DATA, timeoutFunc func()) {
 	waitDuration := initDuration
 
 	for {
 
 		select {
-		case <-quitChan:
-			return
 		case <-time.After(waitDuration):
-			close(quitChan)
+			timeoutFunc()
 			return
 		case _, ok := <-processedChan:
 			if !ok {
