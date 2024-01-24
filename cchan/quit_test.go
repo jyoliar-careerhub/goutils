@@ -21,7 +21,8 @@ func TestTooMuchError(t *testing.T) {
 
 		tooMuchErrCtx, tooMuchErrFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.TooMuchError(errCount, duration, errorChan, tooMuchErrFunc, closedFunc)
+
+		cchan.TooMuchError(errCount, duration, errorChan, tooMuchErrFunc, closedFunc)
 
 		for i := 0; i < 9; i++ {
 			errorChan <- errors.New("error")
@@ -39,7 +40,8 @@ func TestTooMuchError(t *testing.T) {
 
 		tooMuchErrCtx, tooMuchErrFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.TooMuchError(errCount, duration, errorChan, tooMuchErrFunc, closedFunc)
+
+		cchan.TooMuchError(errCount, duration, errorChan, tooMuchErrFunc, closedFunc)
 
 		for i := 0; i < 9; i++ {
 			errorChan <- errors.New("error")
@@ -57,7 +59,8 @@ func TestTooMuchError(t *testing.T) {
 
 		tooMuchErrCtx, tooMuchErrFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.TooMuchError(errCount, duration, errorChan, tooMuchErrFunc, closedFunc)
+
+		cchan.TooMuchError(errCount, duration, errorChan, tooMuchErrFunc, closedFunc)
 
 		for i := 0; i < 10; i++ {
 			errorChan <- errors.New("error")
@@ -81,7 +84,8 @@ func TestTooMuchError(t *testing.T) {
 
 		tooMuchErrCtx, tooMuchErrFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.TooMuchError(errCount, duration, errorChan, tooMuchErrFunc, closedFunc)
+
+		cchan.TooMuchError(errCount, duration, errorChan, tooMuchErrFunc, closedFunc)
 
 		for i := 0; i < 9; i++ {
 			errorChan <- errors.New("error")
@@ -100,7 +104,8 @@ func TestTooMuchError(t *testing.T) {
 
 		tooMuchErrCtx, tooMuchErrFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.TooMuchError(errCount, duration, errorChan, tooMuchErrFunc, closedFunc)
+
+		cchan.TooMuchError(errCount, duration, errorChan, tooMuchErrFunc, closedFunc)
 
 		time.Sleep(duration - (time.Millisecond * time.Duration(200))) // 0.8초 대기
 		close(errorChan)                                               // 채널 정상 종료
@@ -119,7 +124,8 @@ func TestTimeout(t *testing.T) {
 
 		timeoutCtx, timeoutFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
+
+		cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
 
 		time.Sleep(initDuration + (time.Millisecond * time.Duration(200))) // 1.2초 대기
 		processedChan <- ProcessedSignal{}
@@ -133,7 +139,8 @@ func TestTimeout(t *testing.T) {
 
 		timeoutCtx, timeoutFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
+
+		cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
 
 		time.Sleep(initDuration - (time.Millisecond * time.Duration(200))) // 0.8초 대기
 		processedChan <- ProcessedSignal{}
@@ -147,7 +154,8 @@ func TestTimeout(t *testing.T) {
 
 		timeoutCtx, timeoutFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
+
+		cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
 
 		processedChan <- ProcessedSignal{}
 		time.Sleep(duration + (time.Millisecond * time.Duration(100))) // 0.6초 대기
@@ -162,7 +170,8 @@ func TestTimeout(t *testing.T) {
 
 		timeoutCtx, timeoutFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
+
+		cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
 
 		processedChan <- ProcessedSignal{}
 		time.Sleep(duration - (time.Millisecond * time.Duration(100))) // 0.4초 대기
@@ -177,7 +186,8 @@ func TestTimeout(t *testing.T) {
 
 		timeoutCtx, timeoutFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
+
+		cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
 
 		for i := 0; i < 3; i++ {
 			processedChan <- ProcessedSignal{}
@@ -204,7 +214,7 @@ func TestTimeout(t *testing.T) {
 
 		timeoutCtx, timeoutFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
+		cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
 
 		time.Sleep(initDuration + (time.Millisecond * time.Duration(200))) // 1.2초 대기
 		processedChan <- ProcessedSignal{}
@@ -219,7 +229,7 @@ func TestTimeout(t *testing.T) {
 
 		timeoutCtx, timeoutFunc := context.WithCancel(context.Background())
 		closedCtx, closedFunc := context.WithCancel(context.Background())
-		go cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
+		cchan.Timeout(initDuration, duration, processedChan, timeoutFunc, closedFunc)
 
 		time.Sleep(initDuration - (time.Millisecond * time.Duration(200))) // 0.8초 대기
 		processedChan <- ProcessedSignal{}
