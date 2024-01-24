@@ -1,28 +1,29 @@
 package cchan
 
 import (
+	"context"
 	"time"
 
 	"github.com/jae2274/goutils/ptr"
 )
 
-func SendResult[T any, ERROR error, QUIT any](result T, err ERROR, resultChan chan<- T, errChan chan<- ERROR, quitChan <-chan QUIT) bool {
+func SendResult[T any, ERROR error](ctx context.Context, result T, err ERROR, resultChan chan<- T, errChan chan<- ERROR) bool {
 	if !ptr.IsNil(err) {
-		ok := SendOrQuit(err, errChan, quitChan)
+		ok := Send(ctx, errChan, err)
 		return ok
 	} else {
-		ok := SendOrQuit(result, resultChan, quitChan)
+		ok := Send(ctx, resultChan, result)
 		return ok
 	}
 }
 
-func SendResults[T any, ERROR error, QUIT any](results []T, err ERROR, resultChan chan<- T, errChan chan<- ERROR, quitChan <-chan QUIT) bool {
+func SendResults[T any, ERROR error](ctx context.Context, results []T, err ERROR, resultChan chan<- T, errChan chan<- ERROR) bool {
 	if !ptr.IsNil(err) {
-		ok := SendOrQuit(err, errChan, quitChan)
+		ok := Send(ctx, errChan, err)
 		return ok
 	} else {
 		for _, result := range results {
-			ok := SendOrQuit(result, resultChan, quitChan)
+			ok := Send(ctx, resultChan, result)
 			if !ok {
 				return false
 			}
@@ -31,29 +32,29 @@ func SendResults[T any, ERROR error, QUIT any](results []T, err ERROR, resultCha
 	}
 }
 
-func SendOrQuit[T any, QUIT any](data T, sendChan chan<- T, quit <-chan QUIT) bool {
+func Send[T any](ctx context.Context, sendChan chan<- T, data T) bool {
 	select {
-	case <-quit: // quitChan의 트리거를 우선순위로 둔다.
+	case <-ctx.Done(): // context의 종료 트리거를 우선순위로 둔다.
 		return false
 	default:
 		select {
 		case sendChan <- data:
 			return true
-		case <-quit:
+		case <-ctx.Done():
 			return false
 		}
 	}
 }
 
-func ReceiveOrQuit[T any, QUIT any](receiveChan <-chan T, quit <-chan QUIT) (*T, bool) {
+func Receive[T any](ctx context.Context, receiveChan <-chan T) (*T, bool) {
 	select {
-	case <-quit: // quitChan의 트리거를 우선순위로 둔다.
+	case <-ctx.Done(): // context의 종료 트리거를 우선순위로 둔다.
 		return nil, false
 	default:
 		select {
 		case data, ok := <-receiveChan:
 			return &data, ok
-		case <-quit:
+		case <-ctx.Done():
 			return nil, false
 		}
 	}

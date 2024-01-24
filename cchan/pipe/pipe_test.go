@@ -1,6 +1,7 @@
 package pipe_test
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"testing"
@@ -19,12 +20,6 @@ type TestCase struct {
 	TestAction      func(*testing.T, []DivideTarget, []int, []error)
 }
 
-// 테스트 대상
-// 각 파이프별로 정상 동작 확인
-// 각 파이프별로 에러 발생시 에러가 전달되는지 확인
-// bufferSize로 전달된 값이 실제 버퍼 크기에 적용되는지 확인
-// quit 채널이 트리거되면 각 파이프가 종료되는지 확인
-// 첫번째 파이프라인의 채널이 종료시 이후의 파이프가 연쇄적으로 종료되는지 확인
 func TestPipe(t *testing.T) {
 	t.Run("Test cases", func(t *testing.T) {
 		TestCases := []TestCase{
@@ -63,10 +58,10 @@ func TestPipe(t *testing.T) {
 	t.Run("No Buffer Test", func(t *testing.T) {
 		inputChan := make(chan int)
 		errChan := make(chan error, 10)
-		quitChan := make(chan bool)
+		ctx := context.Background()
 
-		outputChan := pipe.Transform(inputChan, errChan, quitChan, nil, square) //outputChan은 버퍼가 없으므로 해당 채널의 데이터를 수신하지 않으면 전송자가 블록된다.
-		fmt.Println(outputChan)                                                 //컴파일 에러를 방지하기 위해 사용한 코드
+		outputChan := pipe.Transform(ctx, inputChan, errChan, nil, square) //outputChan은 버퍼가 없으므로 해당 채널의 데이터를 수신하지 않으면 전송자가 블록된다.
+		fmt.Println(outputChan)                                            //컴파일 에러를 방지하기 위해 사용한 코드
 
 		inputChan <- 3
 		select {
@@ -82,10 +77,10 @@ func TestPipe(t *testing.T) {
 	t.Run("Buffer Test", func(t *testing.T) {
 		inputChan := make(chan int)
 		errChan := make(chan error, 10)
-		quitChan := make(chan bool)
+		ctx := context.Background()
 
-		outputChan := pipe.Transform(inputChan, errChan, quitChan, ptr.P(3), square) //outputChan의 버퍼는 3개이다.
-		fmt.Println(outputChan)                                                      //컴파일 에러를 방지하기 위해 사용한 코드
+		outputChan := pipe.Transform(ctx, inputChan, errChan, ptr.P(3), square) //outputChan의 버퍼는 3개이다.
+		fmt.Println(outputChan)                                                 //컴파일 에러를 방지하기 위해 사용한 코드
 
 		for i := 0; i < 4; i++ { //inputChan은 버퍼가 존재하지 않음에 유의한다. 4개까지 전송이 가능한 이유는 outputChan에 3개까지 전송 이후부터 블록되기 때문이다.
 			inputChan <- 3 //버퍼가 3개이므로, 3개의 데이터를 전송해도 block되지 않는다.
@@ -103,7 +98,7 @@ func TestPipe(t *testing.T) {
 
 	t.Run("Quit Test", func(t *testing.T) {
 		inputChan := make(chan string)
-		quitChan := make(chan bool)
+		ctx, cancelFunc := context.WithCancel(context.Background())
 
 		stepNamesChan := make(chan string, 3)
 
@@ -118,12 +113,12 @@ func TestPipe(t *testing.T) {
 				})
 		}
 		errChan := make(chan error, 10)
-		resultChan := pipe.Pipeline3(inputChan, errChan, quitChan, makeStep("step1"), makeStep("step2"), makeStep("step3"))
+		resultChan := pipe.Pipeline3(ctx, inputChan, errChan, makeStep("step1"), makeStep("step2"), makeStep("step3"))
 
 		inputChan <- "Hello!"
 
-		close(quitChan)
-		time.Sleep(time.Millisecond * 100) // quitChan 트리거를 전파 대기
+		cancelFunc()                       // 파이프라인 종료 트리거
+		time.Sleep(time.Millisecond * 100) // context 종료 전파 대기
 		isClosed, _ := cchan.IsClosed(resultChan)
 		require.True(t, isClosed)
 
@@ -138,7 +133,7 @@ func TestPipe(t *testing.T) {
 
 func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []error) {
 	inputChan := make(chan DivideTarget)
-	quitChan := make(chan bool)
+	ctx := context.Background()
 
 	step1 := pipe.NewStep(nil,
 		func(target DivideTarget) (*DivideTarget, error) {
@@ -158,7 +153,7 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	step4 := pipe.NewStep(nil, square)
 
 	errChan := make(chan error, 10)
-	resultChan := pipe.Pipeline4(inputChan, errChan, quitChan, step1, step2, step3, step4)
+	resultChan := pipe.Pipeline4(ctx, inputChan, errChan, step1, step2, step3, step4)
 
 	for _, input := range inputs {
 		inputChan <- input
@@ -183,37 +178,68 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	time.Sleep(time.Millisecond * 100) // 파이프라인이 종료되기를 기다림
 	isClosed, _ := cchan.IsClosed(resultChan)
 	require.True(t, isClosed)
-	isClosed, _ = cchan.IsClosed(quitChan)
-	require.False(t, isClosed) //resultChan의 종료가 quitChan에 의해 트리거되지 않았음을 알 수 있다.
+	isClosed, _ = cchan.IsClosed(ctx.Done())
+	require.False(t, isClosed) //resultChan의 종료가 context종료에 의해 트리거되지 않았음을 알 수 있다.
 }
 
 func TestPassThrough(t *testing.T) {
 
-	inputChan := make(chan int)
-	quitChan := make(chan bool)
+	t.Run("정상 동작", func(t *testing.T) {
+		inputChan := make(chan int)
+		ctx := context.Background()
 
-	sideResults := make([]int, 0)
-	outputChan := pipe.PassThrough(inputChan, quitChan, func(number int) {
-		sideResults = append(sideResults, number*10)
+		sideResults := make([]int, 0)
+		outputChan := pipe.PassThrough(ctx, inputChan, func(number int) {
+			sideResults = append(sideResults, number*10)
+		})
+
+		go func() {
+			inputChan <- 1
+			inputChan <- 2
+			inputChan <- 3
+			close(inputChan)
+		}()
+
+		require.Equal(t, 1, <-outputChan)
+		require.Equal(t, 2, <-outputChan)
+		require.Equal(t, 3, <-outputChan)
+
+		time.Sleep(time.Millisecond * 100)
+		isClosed, _ := cchan.IsClosed(outputChan)
+		require.True(t, isClosed)
+		isClosed, _ = cchan.IsClosed(ctx.Done())
+		require.False(t, isClosed) //resultChan의 종료가 context 종료에 의해 트리거되지 않았음을 알 수 있다.
+
+		require.Len(t, sideResults, 3)
+		require.Equal(t, []int{10, 20, 30}, sideResults)
 	})
 
-	go func() {
-		inputChan <- 1
-		inputChan <- 2
-		inputChan <- 3
-		close(inputChan)
-	}()
+	t.Run("context 종료 발생", func(t *testing.T) {
+		inputChan := make(chan int)
+		ctx, cancelFunc := context.WithCancel(context.Background())
 
-	require.Equal(t, 1, <-outputChan)
-	require.Equal(t, 2, <-outputChan)
-	require.Equal(t, 3, <-outputChan)
-	isClosed, _ := cchan.IsClosed(inputChan)
-	require.True(t, isClosed)
-	isClosed, _ = cchan.IsClosed(quitChan)
-	require.False(t, isClosed) //resultChan의 종료가 quitChan에 의해 트리거되지 않았음을 알 수 있다.
+		sideResults := make([]int, 0)
+		outputChan := pipe.PassThrough(ctx, inputChan, func(number int) {
+			sideResults = append(sideResults, number*10)
+		})
 
-	require.Len(t, sideResults, 3)
-	require.Equal(t, []int{10, 20, 30}, sideResults)
+		go func() {
+			inputChan <- 1
+			inputChan <- 2
+			time.Sleep(time.Millisecond * 100) // context 종료와 inputChan 전송이 동시에 발생하지 않도록 대기
+			cancelFunc()
+			inputChan <- 3
+		}()
+
+		require.Equal(t, 1, <-outputChan)
+		require.Equal(t, 2, <-outputChan)
+
+		time.Sleep(time.Millisecond * 200) // context 종료 전파 대기
+		isClosed, _ := cchan.IsClosed(outputChan)
+		require.True(t, isClosed)
+
+		require.Len(t, sideResults, 2, sideResults)
+	})
 }
 
 type errNagativeNumber struct {

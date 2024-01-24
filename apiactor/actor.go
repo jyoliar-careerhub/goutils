@@ -1,6 +1,7 @@
 package apiactor
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -15,12 +16,12 @@ type ApiActor struct {
 	minDelay int64
 }
 
-func NewApiActor[QUIT any](minDelay int64, quitChan <-chan QUIT) *ApiActor {
+func NewApiActor(ctx context.Context, minDelay int64) *ApiActor {
 	apiActor := &ApiActor{
 		rjChan:   make(chan *requestJob),
 		minDelay: minDelay,
 	}
-	go run(apiActor, quitChan)
+	go run(ctx, apiActor)
 
 	return apiActor
 }
@@ -51,7 +52,7 @@ type result struct {
 	err    error
 }
 
-func run[QUIT any](a *ApiActor, quitChan <-chan QUIT) {
+func run(ctx context.Context, a *ApiActor) {
 	var lastEndedTime int64 = math.MaxInt64
 
 	for {
@@ -63,7 +64,7 @@ func run[QUIT any](a *ApiActor, quitChan <-chan QUIT) {
 
 		lastEndedTime = time.Now().UnixMilli()
 
-		rj, ok := cchan.ReceiveOrQuit(a.rjChan, quitChan)
+		rj, ok := cchan.Receive(ctx, a.rjChan)
 		if !ok {
 			for {
 				select {
@@ -77,13 +78,13 @@ func run[QUIT any](a *ApiActor, quitChan <-chan QUIT) {
 
 		rc, err := callApi((*rj).request)
 
-		ok = cchan.SendOrQuit(
+		ok = cchan.Send(
+			ctx,
+			(*rj).resultChan,
 			&result{
 				reader: rc,
 				err:    err,
 			},
-			(*rj).resultChan,
-			quitChan,
 		)
 		if !ok {
 			close((*rj).resultChan)

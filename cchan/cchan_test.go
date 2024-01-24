@@ -1,6 +1,7 @@
 package cchan_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -10,68 +11,72 @@ import (
 )
 
 func TestSendResult(t *testing.T) {
-	t.Run("quitChan이 트리거되면 false를 반환하고 result와 error는 전달되지 않느다.", func(t *testing.T) {
-		resultChan, errChan, quitChan := initChans[QuitSignal]()
-		close(quitChan)
+	t.Run("context가 종료되면 false를 반환하고 result와 error는 전달되지 않느다.", func(t *testing.T) {
+		resultChan, errChan := initChans()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
 
-		ok := cchan.SendResult(SampleResult{}, nil, resultChan, errChan, quitChan)
+		ok := cchan.SendResult(ctx, SampleResult{}, nil, resultChan, errChan)
 		require.False(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 0)
 
-		ok = cchan.SendResult(SampleResult{}, errSample, resultChan, errChan, quitChan)
+		ok = cchan.SendResult(ctx, SampleResult{}, errSample, resultChan, errChan)
 		require.False(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 0)
 
-		ok = cchan.SendResults([]SampleResult{{}, {}}, nil, resultChan, errChan, quitChan)
+		ok = cchan.SendResults(ctx, []SampleResult{{}, {}}, nil, resultChan, errChan)
 		require.False(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 0)
 
-		ok = cchan.SendResults([]SampleResult{{}, {}}, errSample, resultChan, errChan, quitChan)
+		ok = cchan.SendResults(ctx, []SampleResult{{}, {}}, errSample, resultChan, errChan)
 		require.False(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 0)
 	})
 
-	t.Run("quitChan이 트리거되지 않고 error가 존재하면 error가 errChan으로 전달되고 result는 전달되지 않는다.", func(t *testing.T) {
-		resultChan, errChan, quitChan := initChans[QuitSignal]()
+	t.Run("context가 종료되지 않고 error가 존재하면 error가 errChan으로 전달되고 result는 전달되지 않는다.", func(t *testing.T) {
+		resultChan, errChan := initChans()
+		ctx := context.Background()
 
-		ok := cchan.SendResult(SampleResult{}, errSample, resultChan, errChan, quitChan)
+		ok := cchan.SendResult(ctx, SampleResult{}, errSample, resultChan, errChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 1)
 
-		ok = cchan.SendResults([]SampleResult{{}, {}}, errSample, resultChan, errChan, quitChan)
+		ok = cchan.SendResults(ctx, []SampleResult{{}, {}}, errSample, resultChan, errChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 1)
 	})
 	t.Run("특정 타입 에러 전달시에도 위와 같은 동작을 한다.", func(t *testing.T) {
-		resultChan, _, quitChan := initChans[QuitSignal]()
+		resultChan, _ := initChans()
 		errChan := make(chan *SampleError, 100)
+		ctx := context.Background()
 
-		ok := cchan.SendResult(SampleResult{}, &SampleError{}, resultChan, errChan, quitChan)
+		ok := cchan.SendResult(ctx, SampleResult{}, &SampleError{}, resultChan, errChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 1)
 
-		ok = cchan.SendResults([]SampleResult{{}, {}}, &SampleError{}, resultChan, errChan, quitChan)
+		ok = cchan.SendResults(ctx, []SampleResult{{}, {}}, &SampleError{}, resultChan, errChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 0)
 		assertLength(t, errChan, 1)
 	})
 
-	t.Run("quitChan이 트리거되지 않고 error가 존재하지 않으면 result가 resultChan으로 전달된다.", func(t *testing.T) {
-		resultChan, errChan, quitChan := initChans[QuitSignal]()
+	t.Run("context가 종료되지 않고 error가 존재하지 않으면 result가 resultChan으로 전달된다.", func(t *testing.T) {
+		resultChan, errChan := initChans()
+		ctx := context.Background()
 
-		ok := cchan.SendResult(SampleResult{}, nil, resultChan, errChan, quitChan)
+		ok := cchan.SendResult(ctx, SampleResult{}, nil, resultChan, errChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 1)
 		assertLength(t, errChan, 0)
 
-		ok = cchan.SendResults([]SampleResult{{}, {}}, nil, resultChan, errChan, quitChan)
+		ok = cchan.SendResults(ctx, []SampleResult{{}, {}}, nil, resultChan, errChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 2)
 		assertLength(t, errChan, 0)
@@ -80,15 +85,15 @@ func TestSendResult(t *testing.T) {
 	t.Run("특정 타입의 error가 nil일 경우에도 위와 같은 동작을 한다.", func(t *testing.T) {
 		resultChan := make(chan SampleResult, 100)
 		errChan := make(chan *SampleError, 100)
-		quitChan := make(chan QuitSignal)
+		ctx := context.Background()
 
 		var err *SampleError = nil
-		ok := cchan.SendResult(SampleResult{}, err, resultChan, errChan, quitChan)
+		ok := cchan.SendResult(ctx, SampleResult{}, err, resultChan, errChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 1)
 		assertLength(t, errChan, 0)
 
-		ok = cchan.SendResults([]SampleResult{{}, {}}, nil, resultChan, errChan, quitChan)
+		ok = cchan.SendResults(ctx, []SampleResult{{}, {}}, nil, resultChan, errChan)
 		require.True(t, ok)
 		assertLength(t, resultChan, 2)
 		assertLength(t, errChan, 0)
@@ -100,33 +105,37 @@ type SampleError struct{}
 func (e SampleError) Error() string { return "Sample Error caused!!!" }
 
 func TestReceiveOrQuit(t *testing.T) {
-	t.Run("quitChan이 트리거되면 false를 반환하고 data는 nil을 리턴한다.", func(t *testing.T) {
-		receiveChan, _, quitChan := initChans[QuitSignal]()
+	t.Run("context가 종료되면 false를 반환하고 data는 nil을 리턴한다.", func(t *testing.T) {
+		receiveChan, _ := initChans()
+		ctx, cancel := context.WithCancel(context.Background())
+
 		resultC := make(chan ReceivedResult, 1)
 
 		go func() {
-			data, ok := cchan.ReceiveOrQuit(receiveChan, quitChan) // receiveChan, quitChan이 트리거되지 않는다면 무한 대기
+			data, ok := cchan.Receive(ctx, receiveChan)
 			resultC <- ReceivedResult{data, ok}
 		}()
 		assertLength(t, resultC, 0)
 
-		close(quitChan)
+		cancel() // context 종료
 		result := assertLength(t, resultC, 1)[0]
 		require.False(t, result.ok)
 		require.Nil(t, result.data)
 
-		receiveChan <- SampleResult{}                          // 이 데이터는 quitChan 트리거의 우선순위로 인해 무시된다.
-		data, ok := cchan.ReceiveOrQuit(receiveChan, quitChan) // close(quitChan) 이후에는 무조건 data는 nil, ok는 false
+		receiveChan <- SampleResult{}
+		data, ok := cchan.Receive(ctx, receiveChan) // context 종료 이후에는 무조건 false, nil을 리턴한다.
 		require.False(t, ok)
 		require.Nil(t, data)
 	})
 
-	t.Run("quitChan이 트리거되지 않고 data가 존재하면 data가 전달되고 true를 반환한다.", func(t *testing.T) {
-		receiveChan, _, quitChan := initChans[QuitSignal]()
+	t.Run("context가 종료되지 않고 data가 존재하면 data가 전달되고 true를 반환한다.", func(t *testing.T) {
+		receiveChan, _ := initChans()
+		ctx := context.Background()
+
 		resultC := make(chan ReceivedResult, 1)
 
 		go func() {
-			data, ok := cchan.ReceiveOrQuit(receiveChan, quitChan) // receiveChan, quitChan이 트리거되지 않는다면 무한 대기
+			data, ok := cchan.Receive(ctx, receiveChan)
 			resultC <- ReceivedResult{data, ok}
 		}()
 		assertLength(t, resultC, 0)
@@ -137,7 +146,7 @@ func TestReceiveOrQuit(t *testing.T) {
 		require.NotNil(t, result.data)
 
 		receiveChan <- SampleResult{}
-		data, ok := cchan.ReceiveOrQuit(receiveChan, quitChan) // receiveChan에 데이터가 존재하면 호출은 바로 리턴된다.
+		data, ok := cchan.Receive(ctx, receiveChan) // receiveChan에 데이터가 존재하면 호출은 바로 리턴된다.
 		require.True(t, ok)
 		require.NotNil(t, data)
 	})
@@ -152,11 +161,11 @@ type ReceivedResult struct {
 
 var errSample = errors.New("sample error")
 
-func initChans[QUIT any]() (chan SampleResult, chan error, chan QUIT) {
+func initChans() (chan SampleResult, chan error) {
 	resultChan := make(chan SampleResult, 100)
 	errChan := make(chan error, 100)
-	quitChan := make(chan QUIT)
-	return resultChan, errChan, quitChan
+
+	return resultChan, errChan
 }
 
 func assertLength[T any](t *testing.T, channel <-chan T, expected int) []T {
@@ -179,7 +188,7 @@ func getFromChan[T any](channel <-chan T) []T {
 }
 
 func moment() <-chan time.Time {
-	return time.After(time.Millisecond * time.Duration(50)) // quitChan에 데이터가 입력될 때까지의 최소 대기 시간
+	return time.After(time.Millisecond * time.Duration(50)) //context 종료 전파를 위한 대기시간
 }
 
 type QuitSignal struct{}

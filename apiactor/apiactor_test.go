@@ -1,6 +1,7 @@
 package apiactor_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -14,7 +15,8 @@ type QuitSignal struct{}
 // 각 Call 메소드의 호출은 이전 Call 메소드 호출이 끝난 후 최소 1초 이후에 시작되어야 한다.
 func TestApiActorDelay(t *testing.T) {
 	var delay int64 = 1000
-	apiActor := apiactor.NewApiActor(delay, make(<-chan QuitSignal))
+
+	apiActor := apiactor.NewApiActor(context.Background(), delay)
 
 	start := time.Now().UnixMilli()
 
