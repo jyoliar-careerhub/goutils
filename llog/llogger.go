@@ -38,7 +38,7 @@ func Debug(ctx context.Context, msg string) error {
 	return Level(DEBUG).Msg(msg).Log(ctx)
 }
 
-func Log(ctx context.Context, llog *LLog) error {
+func Log(llog *LLog) error {
 	if llog.Datas == nil {
 		llog.Datas = make(map[string]any)
 	}
@@ -52,19 +52,6 @@ func Log(ctx context.Context, llog *LLog) error {
 	}
 
 	llog.Metadata = metadatas
-
-	resultDatas := make(map[string]any)
-	for _, key := range defaultContextDataKeys {
-		if value := ctx.Value(key); value != nil {
-			resultDatas[key] = value
-		}
-	}
-
-	for k, v := range llog.Datas {
-		resultDatas[k] = v
-	}
-
-	llog.Datas = resultDatas // override 우선순위 비교: contextData < llog.Datas
 
 	for _, tag := range defaultTags {
 		if !slices.Contains(llog.Tags, tag) {

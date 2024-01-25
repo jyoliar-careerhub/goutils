@@ -227,7 +227,7 @@ func checkStdoutLogErr(t *testing.T, err error, expected *LLogBuilder) {
 	err = json.Unmarshal(logBuf.Bytes(), &actualLog)
 	require.NoError(t, err)
 
-	assertEqualLogs(t, expected.Build(), &actualLog)
+	assertEqualLogs(t, expected.Build(ctx), &actualLog)
 }
 
 func checkStdoutLogFormat(t *testing.T, expected *LLogBuilder) {
@@ -242,11 +242,11 @@ func checkStdoutLogFormat(t *testing.T, expected *LLogBuilder) {
 
 	require.Equal(t, time.Time(actualLog.CreatedAt).Unix(), now.Unix())
 
-	assertEqualLogs(t, expected.Build(), &actualLog)
+	assertEqualLogs(t, expected.Build(ctx), &actualLog)
 }
 
 func checkStdoutLogBuilder(t *testing.T, action func() error, expected *LLogBuilder) {
-	checkStdoutLog(t, action, expected.Build())
+	checkStdoutLog(t, action, expected.Build(context.Background()))
 }
 
 func checkStdoutLog(t *testing.T, action func() error, expected *LLog) {

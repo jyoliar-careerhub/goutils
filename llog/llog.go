@@ -120,12 +120,25 @@ func (l *LLogBuilder) Datas(datas map[string]any) *LLogBuilder {
 }
 
 func (logBuilder *LLogBuilder) Log(ctx context.Context) error {
-	llog := logBuilder.Build()
+	llog := logBuilder.Build(ctx)
 
-	return Log(ctx, llog)
+	return Log(llog)
 }
 
-func (l *LLogBuilder) Build() *LLog {
+func (l *LLogBuilder) Build(ctx context.Context) *LLog {
+	resultDatas := make(map[string]any)
+	for _, key := range defaultContextDataKeys {
+		if value := ctx.Value(key); value != nil {
+			resultDatas[key] = value
+		}
+	}
+
+	for k, v := range l.datas {
+		resultDatas[k] = v
+	}
+
+	l.datas = resultDatas // override 우선순위 비교: contextData < llog.Datas
+
 	return &LLog{
 		Level: l.level,
 		Msg:   l.msg,
