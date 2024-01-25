@@ -2,8 +2,6 @@ package llog
 
 import (
 	"context"
-	"slices"
-	"time"
 )
 
 type LLoger interface {
@@ -39,28 +37,6 @@ func Debug(ctx context.Context, msg string) error {
 }
 
 func Log(llog *LLog) error {
-	if llog.Datas == nil {
-		llog.Datas = make(map[string]any)
-	}
-
-	if llog.Tags == nil {
-		llog.Tags = make([]string, 0)
-	}
-
-	if llog.Level == "" {
-		llog.Level = INFO
-	}
-
-	llog.Metadata = metadatas
-
-	for _, tag := range defaultTags {
-		if !slices.Contains(llog.Tags, tag) {
-			llog.Tags = append(llog.Tags, tag)
-		}
-	}
-
-	llog.CreatedAt = LogTime(time.Now())
-
 	return logcfg.lloger.Log(llog)
 }
 

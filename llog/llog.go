@@ -126,6 +126,24 @@ func (logBuilder *LLogBuilder) Log(ctx context.Context) error {
 }
 
 func (l *LLogBuilder) Build(ctx context.Context) *LLog {
+	if l.datas == nil {
+		l.datas = make(map[string]any)
+	}
+
+	if l.tags == nil {
+		l.tags = make([]string, 0)
+	}
+
+	if l.level == "" {
+		l.level = INFO
+	}
+
+	for _, tag := range defaultTags {
+		if !slices.Contains(l.tags, tag) {
+			l.tags = append(l.tags, tag)
+		}
+	}
+
 	resultDatas := make(map[string]any)
 	for _, key := range defaultContextDataKeys {
 		if value := ctx.Value(key); value != nil {
@@ -140,9 +158,11 @@ func (l *LLogBuilder) Build(ctx context.Context) *LLog {
 	l.datas = resultDatas // override 우선순위 비교: contextData < llog.Datas
 
 	return &LLog{
-		Level: l.level,
-		Msg:   l.msg,
-		Tags:  l.tags,
-		Datas: l.datas,
+		Level:     l.level,
+		Msg:       l.msg,
+		Tags:      l.tags,
+		Datas:     l.datas,
+		Metadata:  metadatas,
+		CreatedAt: LogTime(time.Now()),
 	}
 }
