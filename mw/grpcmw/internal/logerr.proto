@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+package mw.grpcmw.internal;
+option go_package = "mw/grpcmw/internal";
+
+service LogErrService {
+  rpc Error(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc ErrorStream(google.protobuf.Empty) returns (stream google.protobuf.Empty) {}
+}
+
+

@@ -80,6 +80,7 @@ func TestGrpcMW(t *testing.T) {
 			clientStream, err := client.GetCtxIdStream(context.Background(), &emptypb.Empty{})
 			require.NoError(t, err)
 
+			count := 0
 			for {
 				res, err := clientStream.Recv()
 				if err != nil {
@@ -90,14 +91,17 @@ func TestGrpcMW(t *testing.T) {
 				}
 
 				require.NotEmpty(t, res.Id)
+				count++
 			}
+
+			require.Equal(t, 3, count)
 		})
 	})
 }
 
 func initGrpc(t *testing.T) internal.TestServiceClient {
 
-	listener, err := net.Listen("tcp", ":32249")
+	listener, err := net.Listen("tcp", ":32250")
 	require.NoError(t, err)
 
 	grpcServer := grpc.NewServer(
@@ -118,7 +122,7 @@ func initGrpc(t *testing.T) internal.TestServiceClient {
 		require.FailNow(t, err.Error())
 	default:
 	}
-	conn, err := grpc.NewClient("localhost:32249", grpc.WithTransportCredentials(insecure.NewCredentials()),
+	conn, err := grpc.NewClient("localhost:32250", grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithChainUnaryInterceptor(SetTraceIdUnaryMW()),
 		grpc.WithChainStreamInterceptor(SetTraceIdStreamMW()),
 	)
