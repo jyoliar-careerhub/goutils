@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+package mw.grpcmw.internal;
+option go_package = "mw/grpcmw/internal";
+
+
+service TestService{
+    rpc GetCtxId(google.protobuf.Empty) returns (ContextId);
+    rpc GetCtxIdStream(google.protobuf.Empty) returns (stream ContextId);
+}
+
+message ContextId{
+    string id = 1;
+}
