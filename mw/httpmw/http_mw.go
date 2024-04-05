@@ -13,7 +13,7 @@ const (
 	XRequestId string = "X-Request-Id"
 )
 
-func SetTraceIdMW(role string) mux.MiddlewareFunc {
+func SetTraceIdMW() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
