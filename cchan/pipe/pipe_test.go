@@ -57,11 +57,10 @@ func TestPipe(t *testing.T) {
 
 	t.Run("No Buffer Test", func(t *testing.T) {
 		inputChan := make(chan int)
-		errChan := make(chan error, 10)
 		ctx := context.Background()
 
-		outputChan := pipe.Transform(ctx, inputChan, errChan, nil, square) //outputChan은 버퍼가 없으므로 해당 채널의 데이터를 수신하지 않으면 전송자가 블록된다.
-		fmt.Println(outputChan)                                            //컴파일 에러를 방지하기 위해 사용한 코드
+		outputChan, _ := pipe.Transform(ctx, inputChan, nil, square) //outputChan은 버퍼가 없으므로 해당 채널의 데이터를 수신하지 않으면 전송자가 블록된다.
+		fmt.Println(outputChan)                                      //컴파일 에러를 방지하기 위해 사용한 코드
 
 		inputChan <- 3
 		select {
@@ -76,11 +75,10 @@ func TestPipe(t *testing.T) {
 
 	t.Run("Buffer Test", func(t *testing.T) {
 		inputChan := make(chan int)
-		errChan := make(chan error, 10)
 		ctx := context.Background()
 
-		outputChan := pipe.Transform(ctx, inputChan, errChan, ptr.P(3), square) //outputChan의 버퍼는 3개이다.
-		fmt.Println(outputChan)                                                 //컴파일 에러를 방지하기 위해 사용한 코드
+		outputChan, _ := pipe.Transform(ctx, inputChan, ptr.P(3), square) //outputChan의 버퍼는 3개이다.
+		fmt.Println(outputChan)                                           //컴파일 에러를 방지하기 위해 사용한 코드
 
 		for i := 0; i < 4; i++ { //inputChan은 버퍼가 존재하지 않음에 유의한다. 4개까지 전송이 가능한 이유는 outputChan에 3개까지 전송 이후부터 블록되기 때문이다.
 			inputChan <- 3 //버퍼가 3개이므로, 3개의 데이터를 전송해도 block되지 않는다.
@@ -112,14 +110,16 @@ func TestPipe(t *testing.T) {
 					return m, nil
 				})
 		}
-		errChan := make(chan error, 10)
-		resultChan := pipe.Pipeline3(ctx, inputChan, errChan, makeStep("step1"), makeStep("step2"), makeStep("step3"))
+		resultChan, errChan := pipe.Pipeline3(ctx, inputChan, makeStep("step1"), makeStep("step2"), makeStep("step3"))
 
 		inputChan <- "Hello!"
 
 		cancelFunc()                       // 파이프라인 종료 트리거
 		time.Sleep(time.Millisecond * 100) // context 종료 전파 대기
 		isClosed, _ := cchan.IsClosed(resultChan)
+		require.True(t, isClosed)
+		isClosed, err := cchan.IsClosed(errChan)
+		require.True(t, ptr.IsNil(err))
 		require.True(t, isClosed)
 
 		require.Len(t, stepNamesChan, 0)
@@ -152,8 +152,7 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	step3 := pipe.NewStep(nil, sum)
 	step4 := pipe.NewStep(nil, square)
 
-	errChan := make(chan error, 10)
-	resultChan := pipe.Pipeline4(ctx, inputChan, errChan, step1, step2, step3, step4)
+	resultChan, errChan := pipe.Pipeline4(ctx, inputChan, step1, step2, step3, step4)
 
 	for _, input := range inputs {
 		inputChan <- input
@@ -177,6 +176,8 @@ func test(t *testing.T, inputs []DivideTarget, expectedOutputs []int, errs []err
 	close(inputChan)
 	time.Sleep(time.Millisecond * 100) // 파이프라인이 종료되기를 기다림
 	isClosed, _ := cchan.IsClosed(resultChan)
+	require.True(t, isClosed)
+	isClosed, _ = cchan.IsClosed(errChan)
 	require.True(t, isClosed)
 	isClosed, _ = cchan.IsClosed(ctx.Done())
 	require.False(t, isClosed) //resultChan의 종료가 context종료에 의해 트리거되지 않았음을 알 수 있다.

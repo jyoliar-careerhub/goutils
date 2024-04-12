@@ -2,6 +2,7 @@ package cchan
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/jae2274/goutils/ptr"
@@ -143,4 +144,39 @@ func Timeout[DATA any](initDuration, duration time.Duration, processedChan <-cha
 			}
 		}
 	}()
+}
+
+func Merge[T any](ctx context.Context, chans ...<-chan T) <-chan T {
+	mergedChan := make(chan T)
+	go func() {
+		defer close(mergedChan)
+		wg := sync.WaitGroup{}
+		for _, ch := range chans {
+			wg.Add(1)
+			go func(c <-chan T) {
+				defer wg.Done()
+
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					default:
+						select {
+						case data, ok := <-c:
+							if !ok {
+								return
+							}
+							mergedChan <- data
+						case <-ctx.Done():
+							return
+						}
+					}
+				}
+			}(ch)
+		}
+
+		wg.Wait()
+	}()
+
+	return mergedChan
 }

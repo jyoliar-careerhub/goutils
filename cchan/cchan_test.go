@@ -3,6 +3,7 @@ package cchan_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -149,6 +150,131 @@ func TestReceiveOrQuit(t *testing.T) {
 		data, ok := cchan.Receive(ctx, receiveChan) // receiveChan에 데이터가 존재하면 호출은 바로 리턴된다.
 		require.True(t, ok)
 		require.NotNil(t, data)
+	})
+}
+
+func TestMerge(t *testing.T) {
+	t.Run("각 채널의 데이터를 하나의 채널로 병합한다.", func(t *testing.T) {
+		ch1 := make(chan string, 100)
+		ch2 := make(chan string, 100)
+		ch3 := make(chan string, 100)
+
+		merged := cchan.Merge(context.Background(), ch1, ch2, ch3)
+
+		ch1 <- "1"
+		ch2 <- "2"
+		ch3 <- "3"
+		ch2 <- "4"
+		ch1 <- "5"
+
+		close(ch1)
+		close(ch2)
+		close(ch3)
+
+		result := []string{}
+		for data := range merged {
+			result = append(result, data)
+		}
+
+		require.ElementsMatch(t, []string{"1", "2", "3", "4", "5"}, result)
+	})
+
+	t.Run("모든 채널이 닫히지 않으면 병합된 채널도 닫히지 않는다.", func(t *testing.T) {
+		now := time.Now()
+		defer func() {
+			t.Log("duration: ", time.Since(now))
+		}()
+
+		ch1 := make(chan string, 100)
+		ch2 := make(chan string, 100)
+		ch3 := make(chan string, 100)
+
+		merged := cchan.Merge(context.Background(), ch1, ch2, ch3)
+
+		ch1 <- "1"
+		ch2 <- "2"
+		ch3 <- "3"
+		ch2 <- "4"
+		ch1 <- "5"
+
+		close(ch1)
+		close(ch2)
+
+		result := []string{}
+	outer:
+		for {
+			select {
+			case data, ok := <-merged:
+				if ok {
+					result = append(result, data)
+				}
+			case <-moment():
+				break outer
+			}
+		}
+		require.ElementsMatch(t, []string{"1", "2", "3", "4", "5"}, result)
+
+		select {
+		case data, ok := <-merged:
+			if !ok {
+				require.Fail(t, fmt.Sprintf("merged channel should not be closed. data: %v, ok: %v", data, ok))
+			} else {
+				require.Fail(t, fmt.Sprintf("merged channel should not have any data. data: %v, ok: %v", data, ok))
+			}
+		default:
+		}
+
+		ch3 <- "6"
+		ch3 <- "7"
+		close(ch3)
+	outer2:
+		for {
+			select {
+			case data, ok := <-merged:
+				if ok {
+					result = append(result, data)
+				}
+			case <-moment():
+				break outer2
+			}
+		}
+		require.ElementsMatch(t, []string{"1", "2", "3", "4", "5", "6", "7"}, result)
+
+		_, ok := <-merged
+		if ok {
+			require.Fail(t, "merged channel should be closed.")
+		}
+	})
+
+	t.Run("context가 종료되면 각 채널의 종료여부와 상관없이 병합 채널은 닫힌다.", func(t *testing.T) {
+		ch1 := make(chan string)
+		ch2 := make(chan string)
+		ch3 := make(chan string)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		merged := cchan.Merge(ctx, ch1, ch2, ch3)
+
+		go func() {
+			ch1 <- "1"
+			ch2 <- "2"
+			ch3 <- "3"
+			ch2 <- "4"
+			ch1 <- "5"
+		}()
+
+		go func() {
+			time.Sleep(time.Millisecond * 100)
+			cancel()
+			ch1 <- "6" //context 종료로 인해 닫힌 병합 채널에 더이상 데이터를 보낼 수 없다.
+			require.Fail(t, "ch1 should be blocked")
+		}()
+
+		result := []string{}
+		for data := range merged {
+			result = append(result, data)
+		}
+
+		require.ElementsMatch(t, []string{"1", "2", "3", "4", "5"}, result)
 	})
 }
 
