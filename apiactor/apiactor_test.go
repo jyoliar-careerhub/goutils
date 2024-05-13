@@ -2,6 +2,7 @@ package apiactor_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -38,4 +39,27 @@ func TestApiActorDelay(t *testing.T) {
 	//예) 호출 경과 0.2초, delay 1초 -> 바로 이후 호출은 0.8초 대기
 	require.Greater(t, end-start, delay*4)
 	require.Less(t, end-start, delay*6)
+}
+
+func TestIsHttpError(t *testing.T) {
+	err := &apiactor.HttpError{StatusCode: 404, Status: "Not Found"}
+	require.True(t, apiactor.IsHttpError(err))
+
+	err = &apiactor.HttpError{StatusCode: 404, Status: "Not Found"}
+	require.True(t, apiactor.IsHttpErrorWithStatusCode(err, 404))
+
+	err = &apiactor.HttpError{StatusCode: 404, Status: "Not Found"}
+	require.False(t, apiactor.IsHttpErrorWithStatusCode(err, 500))
+
+	var errInterface error = &apiactor.HttpError{StatusCode: 404, Status: "Not Found"}
+	require.True(t, apiactor.IsHttpError(errInterface))
+
+	errInterface = &apiactor.HttpError{StatusCode: 404, Status: "Not Found"}
+	require.True(t, apiactor.IsHttpErrorWithStatusCode(errInterface, 404))
+
+	errInterface = &apiactor.HttpError{StatusCode: 404, Status: "Not Found"}
+	require.False(t, apiactor.IsHttpErrorWithStatusCode(errInterface, 500))
+
+	errInterface = fmt.Errorf("error")
+	require.False(t, apiactor.IsHttpError(errInterface))
 }

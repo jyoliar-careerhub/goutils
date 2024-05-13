@@ -37,3 +37,13 @@ type HttpError struct {
 func (h *HttpError) Error() string {
 	return fmt.Sprintf("HttpError: %s", h.Status)
 }
+
+func IsHttpError(err error) bool {
+	_, ok := err.(*HttpError)
+	return ok
+}
+
+func IsHttpErrorWithStatusCode(err error, statusCode int) bool {
+	httpErr, ok := err.(*HttpError)
+	return ok && httpErr.StatusCode == statusCode
+}
