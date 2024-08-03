@@ -15,6 +15,10 @@ func testOptional[T any](t *testing.T, value *T, defaultValue T, zeroValue T) {
 	t.Run("if not exists", func(t *testing.T) {
 		testNotExist(t, nil, defaultValue, zeroValue)
 	})
+
+	t.Run("if empty", func(t *testing.T) {
+		testEmpty(t, defaultValue, zeroValue)
+	})
 }
 
 func testExist[T any](t *testing.T, value *T, defaultValue T, zeroValue T) {
@@ -45,6 +49,20 @@ func testNotExist[T any](t *testing.T, value *T, defaultValue T, zeroValue T) {
 	require.Equal(t, defaultValue, opt.OrElse(defaultValue))
 }
 
+func testEmpty[T any](t *testing.T, defaultValue T, zeroValue T) {
+	opt := NewEmptyOptional[T]()
+	require.False(t, opt.IsPresent())
+
+	result := opt.Get()
+	require.Equal(t, zeroValue, result)
+
+	resultPtr := opt.GetPtr()
+	require.Nil(t, resultPtr)
+
+	require.Equal(t, defaultValue, *opt.OrElsePtr(defaultValue))
+	require.Equal(t, defaultValue, opt.OrElse(defaultValue))
+}
+
 func TestOptional(t *testing.T) {
 
 	testOptional(t, ptr.P(42), 5, 0)
@@ -55,4 +73,5 @@ func TestOptional(t *testing.T) {
 		Age  int
 	}
 	testOptional(t, ptr.P(User{Name: "Alice", Age: 25}), User{Name: "Bob", Age: 30}, User{})
+
 }

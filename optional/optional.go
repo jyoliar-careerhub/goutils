@@ -10,8 +10,8 @@ func NewOptional[T any](value *T) Optional[T] {
 	return Optional[T]{value: value}
 }
 
-func NewOptionalPtr[T any](value T) Optional[T] {
-	return Optional[T]{value: &value}
+func NewEmptyOptional[T any]() Optional[T] {
+	return Optional[T]{value: nil}
 }
 
 // IsPresent는 Optional에 값이 설정되어 있는지 여부를 반환합니다.
