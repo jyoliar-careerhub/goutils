@@ -6,14 +6,14 @@ import (
 	"net/http"
 )
 
-func callApi(httpReq *http.Request) (io.ReadCloser, error) {
+func CallApi(httpReq *http.Request) (io.ReadCloser, error) {
 	client := &http.Client{}
 	res, err := client.Do(httpReq)
 
-	return getBody(res, err)
+	return GetBody(res, err)
 }
 
-func getBody(res *http.Response, err error) (io.ReadCloser, error) {
+func GetBody(res *http.Response, err error) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}

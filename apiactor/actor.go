@@ -76,7 +76,7 @@ func run(ctx context.Context, a *ApiActor) {
 			}
 		}
 
-		rc, err := callApi((*rj).request)
+		rc, err := CallApi((*rj).request)
 
 		ok = cchan.Send(
 			ctx,
