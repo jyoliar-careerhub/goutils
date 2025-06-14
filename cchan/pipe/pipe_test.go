@@ -241,6 +241,74 @@ func TestPassThrough(t *testing.T) {
 
 		require.Len(t, sideResults, 2, sideResults)
 	})
+
+	t.Run("AsyncAwaitSteps", func(t *testing.T) {
+		asyncTest(t, nil, nil, 6)
+		asyncTest(t, ptr.P(1), nil, 4)
+		asyncTest(t, ptr.P(2), nil, 3)
+		asyncTest(t, ptr.P(3), nil, 3)
+		asyncTest(t, ptr.P(4), nil, 2)
+		asyncTest(t, ptr.P(5), nil, 2)
+		asyncTest(t, ptr.P(9), nil, 2)
+		asyncTest(t, ptr.P(10), nil, 1)
+	})
+
+}
+func asyncTest(t *testing.T, asyncBufferSize *int, awaitBufferSize *int, expectedSeconds int) {
+	ctx := context.Background()
+	inputChan := make(chan byte)
+
+	step1 := pipe.NewStep(nil, func(num byte) (int, error) {
+		return int(num) - 96, nil
+	})
+	asyncStep, awaitStep := pipe.NewAsyncAwaitSteps(
+		asyncBufferSize, // asyncStep 버퍼 사이즈는 nil로 설정하여 기본값(0) 사용
+		awaitBufferSize,
+		func(num int) (int, error) {
+			time.Sleep(time.Second)
+			return num * 2, nil
+		},
+	)
+
+	step2 := pipe.NewStep(nil, func(num int) (string, error) {
+		return fmt.Sprintf("%d", num), nil
+	})
+
+	asyncResultChan, errChan := pipe.Pipeline4(ctx, inputChan, step1, asyncStep, awaitStep, step2)
+
+	start := time.Now()
+	go func() {
+		inputChan <- 'a'
+		inputChan <- 'b'
+		inputChan <- 'c'
+		inputChan <- 'd'
+		inputChan <- 'e'
+		inputChan <- 'f'
+		inputChan <- 'g'
+		inputChan <- 'h'
+		inputChan <- 'i'
+		inputChan <- 'j'
+		inputChan <- 'k'
+		inputChan <- 'l'
+		close(inputChan)
+	}()
+	exepectedResults := []string{"2", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "24"}
+	index := 0
+	for result := range asyncResultChan {
+		require.Equal(t, exepectedResults[index], result)
+		index++
+	}
+
+	require.Len(t, errChan, 0)
+	for err := range errChan {
+		require.Fail(t, "errChan should be empty", err)
+	}
+
+	end := time.Now()
+
+	expectedEnd := start.Add(time.Duration(expectedSeconds) * time.Second)
+	require.WithinDurationf(t, expectedEnd, end, 100*time.Millisecond, "Expected processing to complete within %d seconds, but took %d", expectedEnd.Sub(start).Milliseconds(), end.Sub(start).Milliseconds())
+
 }
 
 type errNagativeNumber struct {

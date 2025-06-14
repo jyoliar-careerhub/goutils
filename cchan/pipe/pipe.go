@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/jae2274/goutils/cchan"
+	"github.com/jae2274/goutils/cchan/async"
 )
 
 func Transform[INPUT any, OUTPUT any, ERROR error](ctx context.Context, inputChan <-chan INPUT, bufferSize *int, action func(INPUT) (OUTPUT, ERROR)) (<-chan OUTPUT, <-chan ERROR) {
@@ -44,6 +45,26 @@ type Step[INPUT, OUTPUT any, ERROR error] struct {
 
 func NewStep[INPUT, OUTPUT any, ERROR error](bufferSize *int, action func(INPUT) (OUTPUT, ERROR)) Step[INPUT, OUTPUT, ERROR] {
 	return Step[INPUT, OUTPUT, ERROR]{bufferSize, action}
+}
+
+func NewAsyncAwaitSteps[INPUT, OUTPUT any](
+	asyncBufferSize *int,
+	awaitBufferSize *int,
+	action func(INPUT) (OUTPUT, error),
+) (Step[INPUT, <-chan async.Result[OUTPUT], error], Step[<-chan async.Result[OUTPUT], OUTPUT, error]) {
+	asyncStep := NewStep(asyncBufferSize, func(input INPUT) (<-chan async.Result[OUTPUT], error) {
+		return async.ExecAsync(
+			func() (OUTPUT, error) { return action(input) },
+		), nil
+	})
+
+	awaitStep := NewStep(awaitBufferSize, func(asyncResult <-chan async.Result[OUTPUT]) (OUTPUT, error) {
+		result := <-asyncResult
+
+		return result.Value, result.Err
+	})
+
+	return asyncStep, awaitStep
 }
 
 // Pipeline은 여러개의 Step을 연속적으로 연결하여 하나의 채널로 연결한다.
@@ -94,6 +115,75 @@ func Pipeline4[INPUT any, M1 any, M2 any, M3 any, OUTPUT any, ERROR error](
 	errChan := cchan.Merge(ctx, step1Err, step2Err, step3Err, step4Err)
 
 	return step4Pipe, errChan
+}
+
+func Pipeline5[INPUT any, M1 any, M2 any, M3 any, M4 any, OUTPUT any, ERROR error](
+	ctx context.Context,
+	inputChan <-chan INPUT,
+	step1 Step[INPUT, M1, ERROR],
+	step2 Step[M1, M2, ERROR],
+	step3 Step[M2, M3, ERROR],
+	step4 Step[M3, M4, ERROR],
+	step5 Step[M4, OUTPUT, ERROR],
+) (<-chan OUTPUT, <-chan ERROR) {
+	step1Pipe, step1Err := Transform(ctx, inputChan, step1.BufferSize, step1.Action)
+	step2Pipe, step2Err := Transform(ctx, step1Pipe, step2.BufferSize, step2.Action)
+	step3Pipe, step3Err := Transform(ctx, step2Pipe, step3.BufferSize, step3.Action)
+	step4Pipe, step4Err := Transform(ctx, step3Pipe, step4.BufferSize, step4.Action)
+	step5Pipe, step5Err := Transform(ctx, step4Pipe, step5.BufferSize, step5.Action)
+
+	errChan := cchan.Merge(ctx, step1Err, step2Err, step3Err, step4Err, step5Err)
+
+	return step5Pipe, errChan
+}
+
+func Pipeline6[INPUT any, M1 any, M2 any, M3 any, M4 any, M5 any, OUTPUT any, ERROR error](
+	ctx context.Context,
+	inputChan <-chan INPUT,
+	step1 Step[INPUT, M1, ERROR],
+	step2 Step[M1, M2, ERROR],
+	step3 Step[M2, M3, ERROR],
+	step4 Step[M3, M4, ERROR],
+	step5 Step[M4, M5, ERROR],
+	step6 Step[M5, OUTPUT, ERROR],
+) (<-chan OUTPUT, <-chan ERROR) {
+	step1Pipe, step1Err := Transform(ctx, inputChan, step1.BufferSize, step1.Action)
+	step2Pipe, step2Err := Transform(ctx, step1Pipe, step2.BufferSize, step2.Action)
+	step3Pipe, step3Err := Transform(ctx, step2Pipe, step3.BufferSize, step3.Action)
+	step4Pipe, step4Err := Transform(ctx, step3Pipe, step4.BufferSize, step4.Action)
+	step5Pipe, step5Err := Transform(ctx, step4Pipe, step5.BufferSize, step5.Action)
+	step6Pipe, step6Err := Transform(ctx, step5Pipe, step6.BufferSize, step6.Action)
+
+	errChan := cchan.Merge(ctx, step1Err, step2Err, step3Err, step4Err, step5Err, step6Err)
+
+	return step6Pipe, errChan
+}
+
+func Pipeline7[INPUT any, M1 any, M2 any, M3 any, M4 any, M5 any, M6 any, OUTPUT any, ERROR error](
+	ctx context.Context,
+	inputChan <-chan INPUT,
+	step1 Step[INPUT, M1, ERROR],
+	step2 Step[M1, M2, ERROR],
+	step3 Step[M2, M3, ERROR],
+	step4 Step[M3, M4, ERROR],
+	step5 Step[M4, M5, ERROR],
+	step6 Step[M5, M6, ERROR],
+	step7 Step[M6, OUTPUT, ERROR],
+) (<-chan OUTPUT, <-chan ERROR) {
+	step1Pipe, step1Err := Transform(ctx, inputChan, step1.BufferSize, step1.Action)
+	step2Pipe, step2Err := Transform(ctx, step1Pipe, step2.BufferSize, step2.Action)
+	step3Pipe, step3Err := Transform(ctx, step2Pipe, step3.BufferSize, step3.Action)
+	step4Pipe, step4Err := Transform(ctx, step3Pipe, step4.BufferSize, step4.Action)
+	step5Pipe, step5Err := Transform(ctx, step4Pipe, step5.BufferSize, step5.Action)
+	step6Pipe, step6Err := Transform(ctx, step5Pipe, step6.BufferSize, step6.Action)
+	step7Pipe, step7Err := Transform(ctx, step6Pipe, step7.BufferSize, step7.Action)
+
+	errChan := cchan.Merge(ctx, step1Err, step2Err, step3Err, step4Err, step5Err,
+		step6Err,
+		step7Err)
+
+	return step7Pipe,
+		errChan
 }
 
 func PassThrough[TARGET any](ctx context.Context, inputChan <-chan TARGET, action func(TARGET)) <-chan TARGET {
