@@ -17,3 +17,16 @@ func ExecAsync[T any](fn func() (T, error)) <-chan Result[T] {
 
 	return ch
 }
+
+func ExecAsyncWithParam[T any, P any](param P, fn func(P) (T, error)) <-chan Result[T] {
+	ch := make(chan Result[T])
+
+	go func() {
+		defer close(ch)
+
+		value, err := fn(param)
+		ch <- Result[T]{value, err}
+	}()
+
+	return ch
+}

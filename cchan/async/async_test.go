@@ -107,3 +107,99 @@ func TestAsync(t *testing.T) {
 		})
 	})
 }
+func TestAsyncWithParam(t *testing.T) {
+
+	// given
+	waitSecond3Return1 := func(p int) (int, error) {
+		time.Sleep(3 * time.Second)
+		return p, nil
+	}
+
+	returnInt := func(p int) (int, error) {
+		return p, nil
+	}
+
+	returnString := func(p string) (string, error) {
+		return p, nil
+	}
+
+	returnStruct := func(p string) (testSample, error) {
+		return testSample{name: p}, nil
+	}
+
+	returnError := func(p string) (any, error) {
+		return nil, fmt.Errorf(p)
+	}
+
+	t.Run("run function asynchronously", func(t *testing.T) {
+
+		// when
+		start := time.Now()
+		ExecAsyncWithParam(1, waitSecond3Return1)
+		returnAsync := time.Now()
+		require.Less(t, returnAsync.Sub(start), 1*time.Millisecond)
+	})
+	t.Run("chan Result returns after finish func", func(t *testing.T) {
+		// when
+		start := time.Now()
+		result := ExecAsyncWithParam(1, waitSecond3Return1)
+
+		resultValue := <-result
+		end := time.Now()
+		require.GreaterOrEqual(t, end.Sub(start), 3*time.Second)
+
+		// then
+		require.Equal(t, 1, resultValue.Value)
+		require.Nil(t, resultValue.Err)
+
+		select {
+		case _, ok := <-result:
+			require.False(t, ok)
+		default:
+			require.Fail(t, "result channel should be closed")
+		}
+	})
+
+	t.Run("return variable values", func(t *testing.T) {
+		t.Run("return int", func(t *testing.T) {
+			// when
+			result := ExecAsyncWithParam(1, returnInt)
+
+			// then
+			resultValue := <-result
+			require.Equal(t, 1, resultValue.Value)
+			require.Nil(t, resultValue.Err)
+		})
+
+		t.Run("return string", func(t *testing.T) {
+			// when
+			result := ExecAsyncWithParam("hello", returnString)
+
+			// then
+			resultValue := <-result
+			require.Equal(t, "hello", resultValue.Value)
+			require.Nil(t, resultValue.Err)
+		})
+
+		t.Run("return struct", func(t *testing.T) {
+			// when
+			result := ExecAsyncWithParam("test", returnStruct)
+
+			// then
+			resultValue := <-result
+			require.Equal(t, testSample{name: "test"}, resultValue.Value)
+			require.Nil(t, resultValue.Err)
+		})
+
+		t.Run("return error", func(t *testing.T) {
+			// when
+			result := ExecAsyncWithParam("errorTest", returnError)
+
+			// then
+			resultValue := <-result
+			require.Nil(t, resultValue.Value)
+			require.Error(t, resultValue.Err)
+			require.Equal(t, "errorTest", resultValue.Err.Error())
+		})
+	})
+}

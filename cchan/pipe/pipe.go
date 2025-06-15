@@ -53,8 +53,9 @@ func NewAsyncAwaitSteps[INPUT, OUTPUT any](
 	action func(INPUT) (OUTPUT, error),
 ) (Step[INPUT, <-chan async.Result[OUTPUT], error], Step[<-chan async.Result[OUTPUT], OUTPUT, error]) {
 	asyncStep := NewStep(asyncBufferSize, func(input INPUT) (<-chan async.Result[OUTPUT], error) {
-		return async.ExecAsync(
-			func() (OUTPUT, error) { return action(input) },
+		return async.ExecAsyncWithParam(
+			input,
+			action,
 		), nil
 	})
 
