@@ -48,15 +48,13 @@ func NewStep[INPUT, OUTPUT any, ERROR error](bufferSize *int, action func(INPUT)
 }
 
 func NewAsyncAwaitSteps[INPUT, OUTPUT any](
+	ctx context.Context,
 	asyncBufferSize *int,
 	awaitBufferSize *int,
-	action func(INPUT) (OUTPUT, error),
+	action func(context.Context, INPUT) (OUTPUT, error),
 ) (Step[INPUT, <-chan async.Result[OUTPUT], error], Step[<-chan async.Result[OUTPUT], OUTPUT, error]) {
 	asyncStep := NewStep(asyncBufferSize, func(input INPUT) (<-chan async.Result[OUTPUT], error) {
-		return async.ExecAsyncWithParam(
-			input,
-			action,
-		), nil
+		return async.ExecAsyncWithParam(ctx, input, action), nil
 	})
 
 	awaitStep := NewStep(awaitBufferSize, func(asyncResult <-chan async.Result[OUTPUT]) (OUTPUT, error) {
@@ -67,6 +65,33 @@ func NewAsyncAwaitSteps[INPUT, OUTPUT any](
 
 	return asyncStep, awaitStep
 }
+
+// type token struct{}
+
+// func NewUnorderedAsyncStep[INPUT any, OUTPUT any](ctx context.Context, bufferSize *int, concurrencySize int, action func(INPUT) (OUTPUT, error)) Step[INPUT, OUTPUT, error] {
+// 	p := ppool.NewPool(concurrencySize, func() (token, error) {
+// 		return token{}, nil
+// 	})
+
+// 	resultChan := make(chan async.Result[OUTPUT], concurrencySize)
+
+// 	return NewStep(bufferSize, func(input INPUT) (OUTPUT, error) {
+// 		tk, err := p.Acquire(ctx)
+// 		if err != nil {
+// 			return *new(OUTPUT), err
+// 		}
+
+// 		go func(tk token, input INPUT) {
+// 			defer p.Release(tk)
+
+// 			v, err := action(input)
+// 			resultChan <- async.Result[OUTPUT]{Value: v, Err: err}
+// 		}(tk, input)
+
+// 		result := <-resultChan
+// 		return result.Value, result.Err
+// 	})
+// }
 
 // Pipeline은 여러개의 Step을 연속적으로 연결하여 하나의 채널로 연결한다.
 // 각각의 step은 context의 종료 트리거가 별도로 전파되고 종료되므로, 아직 종료되지 않은 step이 존재할 수 있다.

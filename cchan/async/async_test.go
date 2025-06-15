@@ -1,6 +1,7 @@
 package async
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -15,24 +16,28 @@ type testSample struct {
 func TestAsync(t *testing.T) {
 
 	// given
-	waitSecond3Return1 := func() (int, error) {
-		time.Sleep(3 * time.Second)
+	waitSecond3Return1 := func(ctx context.Context) (int, error) {
+		select {
+		case <-time.After(3 * time.Second):
+			return 1, nil
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		}
+	}
+
+	returnInt := func(context.Context) (int, error) {
 		return 1, nil
 	}
 
-	returnInt := func() (int, error) {
-		return 1, nil
-	}
-
-	returnString := func() (string, error) {
+	returnString := func(context.Context) (string, error) {
 		return "hello", nil
 	}
 
-	returnStruct := func() (testSample, error) {
+	returnStruct := func(context.Context) (testSample, error) {
 		return testSample{name: "test"}, nil
 	}
 
-	returnError := func() (any, error) {
+	returnError := func(context.Context) (any, error) {
 		return nil, fmt.Errorf("error")
 	}
 
@@ -40,14 +45,14 @@ func TestAsync(t *testing.T) {
 
 		// when
 		start := time.Now()
-		ExecAsync(waitSecond3Return1)
+		ExecAsync(context.Background(), waitSecond3Return1)
 		returnAsync := time.Now()
 		require.Less(t, returnAsync.Sub(start), 1*time.Millisecond)
 	})
 	t.Run("chan Result returns after finish func", func(t *testing.T) {
 		// when
 		start := time.Now()
-		result := ExecAsync(waitSecond3Return1)
+		result := ExecAsync(context.Background(), waitSecond3Return1)
 
 		resultValue := <-result
 		end := time.Now()
@@ -68,7 +73,7 @@ func TestAsync(t *testing.T) {
 	t.Run("return variable values", func(t *testing.T) {
 		t.Run("return int", func(t *testing.T) {
 			// when
-			result := ExecAsync(returnInt)
+			result := ExecAsync(context.Background(), returnInt)
 
 			// then
 			resultValue := <-result
@@ -78,7 +83,7 @@ func TestAsync(t *testing.T) {
 
 		t.Run("return string", func(t *testing.T) {
 			// when
-			result := ExecAsync(returnString)
+			result := ExecAsync(context.Background(), returnString)
 
 			// then
 			resultValue := <-result
@@ -88,7 +93,7 @@ func TestAsync(t *testing.T) {
 
 		t.Run("return struct", func(t *testing.T) {
 			// when
-			result := ExecAsync(returnStruct)
+			result := ExecAsync(context.Background(), returnStruct)
 
 			// then
 			resultValue := <-result
@@ -98,7 +103,7 @@ func TestAsync(t *testing.T) {
 
 		t.Run("return error", func(t *testing.T) {
 			// when
-			result := ExecAsync(returnError)
+			result := ExecAsync(context.Background(), returnError)
 
 			// then
 			resultValue := <-result
@@ -106,28 +111,76 @@ func TestAsync(t *testing.T) {
 			require.Error(t, resultValue.Err)
 		})
 	})
+
+	t.Run("context cancelled", func(t *testing.T) {
+		// given
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// when
+		result := ExecAsync(ctx, waitSecond3Return1)
+
+		cancel() // cancel context before function finishes
+
+		resultValue := <-result
+
+		require.Less(t, time.Millisecond, 3*time.Second)
+		require.ErrorIs(t, resultValue.Err, context.Canceled)
+
+		select {
+		case _, ok := <-result:
+			require.False(t, ok)
+		default:
+			require.Fail(t, "result channel should be closed")
+		}
+	})
+
+	t.Run("context timeout", func(t *testing.T) {
+		// given
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		// when
+		start := time.Now()
+		result := ExecAsync(ctx, waitSecond3Return1)
+
+		resultValue := <-result
+
+		require.WithinDuration(t, start.Add(time.Second), time.Now(), 10*time.Millisecond)
+		require.Equal(t, context.DeadlineExceeded, resultValue.Err)
+
+		select {
+		case _, ok := <-result:
+			require.False(t, ok)
+		default:
+			require.Fail(t, "result channel should be closed")
+		}
+	})
 }
 func TestAsyncWithParam(t *testing.T) {
 
 	// given
-	waitSecond3Return1 := func(p int) (int, error) {
-		time.Sleep(3 * time.Second)
+	waitSecond3Return1 := func(ctx context.Context, p int) (int, error) {
+		select {
+		case <-time.After(3 * time.Second):
+			return p, nil
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		}
+	}
+
+	returnInt := func(ctx context.Context, p int) (int, error) {
 		return p, nil
 	}
 
-	returnInt := func(p int) (int, error) {
+	returnString := func(ctx context.Context, p string) (string, error) {
 		return p, nil
 	}
 
-	returnString := func(p string) (string, error) {
-		return p, nil
-	}
-
-	returnStruct := func(p string) (testSample, error) {
+	returnStruct := func(ctx context.Context, p string) (testSample, error) {
 		return testSample{name: p}, nil
 	}
 
-	returnError := func(p string) (any, error) {
+	returnError := func(ctx context.Context, p string) (any, error) {
 		return nil, fmt.Errorf(p)
 	}
 
@@ -135,14 +188,14 @@ func TestAsyncWithParam(t *testing.T) {
 
 		// when
 		start := time.Now()
-		ExecAsyncWithParam(1, waitSecond3Return1)
+		ExecAsyncWithParam(context.Background(), 1, waitSecond3Return1)
 		returnAsync := time.Now()
 		require.Less(t, returnAsync.Sub(start), 1*time.Millisecond)
 	})
 	t.Run("chan Result returns after finish func", func(t *testing.T) {
 		// when
 		start := time.Now()
-		result := ExecAsyncWithParam(1, waitSecond3Return1)
+		result := ExecAsyncWithParam(context.Background(), 1, waitSecond3Return1)
 
 		resultValue := <-result
 		end := time.Now()
@@ -163,7 +216,7 @@ func TestAsyncWithParam(t *testing.T) {
 	t.Run("return variable values", func(t *testing.T) {
 		t.Run("return int", func(t *testing.T) {
 			// when
-			result := ExecAsyncWithParam(1, returnInt)
+			result := ExecAsyncWithParam(context.Background(), 1, returnInt)
 
 			// then
 			resultValue := <-result
@@ -173,7 +226,7 @@ func TestAsyncWithParam(t *testing.T) {
 
 		t.Run("return string", func(t *testing.T) {
 			// when
-			result := ExecAsyncWithParam("hello", returnString)
+			result := ExecAsyncWithParam(context.Background(), "hello", returnString)
 
 			// then
 			resultValue := <-result
@@ -183,7 +236,7 @@ func TestAsyncWithParam(t *testing.T) {
 
 		t.Run("return struct", func(t *testing.T) {
 			// when
-			result := ExecAsyncWithParam("test", returnStruct)
+			result := ExecAsyncWithParam(context.Background(), "test", returnStruct)
 
 			// then
 			resultValue := <-result
@@ -193,7 +246,7 @@ func TestAsyncWithParam(t *testing.T) {
 
 		t.Run("return error", func(t *testing.T) {
 			// when
-			result := ExecAsyncWithParam("errorTest", returnError)
+			result := ExecAsyncWithParam(context.Background(), "errorTest", returnError)
 
 			// then
 			resultValue := <-result
@@ -201,5 +254,49 @@ func TestAsyncWithParam(t *testing.T) {
 			require.Error(t, resultValue.Err)
 			require.Equal(t, "errorTest", resultValue.Err.Error())
 		})
+	})
+
+	t.Run("context cancelled", func(t *testing.T) {
+		// given
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// when
+		result := ExecAsyncWithParam(ctx, 1, waitSecond3Return1)
+
+		cancel() // cancel context before function finishes
+
+		resultValue := <-result
+
+		require.Less(t, time.Millisecond, 3*time.Second)
+		require.ErrorIs(t, resultValue.Err, context.Canceled)
+
+		select {
+		case _, ok := <-result:
+			require.False(t, ok)
+		default:
+			require.Fail(t, "result channel should be closed")
+		}
+	})
+
+	t.Run("context timeout", func(t *testing.T) {
+		// given
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		// when
+		start := time.Now()
+		result := ExecAsyncWithParam(ctx, 1, waitSecond3Return1)
+
+		resultValue := <-result
+
+		require.WithinDuration(t, start.Add(time.Second), time.Now(), 10*time.Millisecond)
+		require.Equal(t, context.DeadlineExceeded, resultValue.Err)
+
+		select {
+		case _, ok := <-result:
+			require.False(t, ok)
+		default:
+			require.Fail(t, "result channel should be closed")
+		}
 	})
 }
