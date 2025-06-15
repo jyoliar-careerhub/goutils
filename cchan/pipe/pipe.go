@@ -5,6 +5,8 @@ import (
 
 	"github.com/jae2274/goutils/cchan"
 	"github.com/jae2274/goutils/cchan/async"
+	"github.com/jae2274/goutils/ppool"
+	"github.com/jae2274/goutils/ptr"
 )
 
 func Transform[INPUT any, OUTPUT any, ERROR error](ctx context.Context, inputChan <-chan INPUT, bufferSize *int, action func(INPUT) (OUTPUT, ERROR)) (<-chan OUTPUT, <-chan ERROR) {
@@ -47,17 +49,30 @@ func NewStep[INPUT, OUTPUT any, ERROR error](bufferSize *int, action func(INPUT)
 	return Step[INPUT, OUTPUT, ERROR]{bufferSize, action}
 }
 
+type token struct{}
+
 func NewAsyncAwaitSteps[INPUT, OUTPUT any](
 	ctx context.Context,
-	asyncBufferSize *int,
-	awaitBufferSize *int,
+	bufferSize *int,
+	concurrencySize int,
 	action func(context.Context, INPUT) (OUTPUT, error),
 ) (Step[INPUT, <-chan async.Result[OUTPUT], error], Step[<-chan async.Result[OUTPUT], OUTPUT, error]) {
-	asyncStep := NewStep(asyncBufferSize, func(input INPUT) (<-chan async.Result[OUTPUT], error) {
-		return async.ExecAsyncWithParam(ctx, input, action), nil
+	p := ppool.NewPool(concurrencySize, func() (token, error) {
+		return token{}, nil
+	})
+	asyncStep := NewStep(ptr.P(concurrencySize), func(input INPUT) (<-chan async.Result[OUTPUT], error) {
+		tk, err := p.Acquire(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		return async.ExecAsyncWithParam(ctx, input, func(ctx context.Context, input INPUT) (OUTPUT, error) {
+			defer p.Release(tk)
+			return action(ctx, input)
+		}), nil
 	})
 
-	awaitStep := NewStep(awaitBufferSize, func(asyncResult <-chan async.Result[OUTPUT]) (OUTPUT, error) {
+	awaitStep := NewStep(bufferSize, func(asyncResult <-chan async.Result[OUTPUT]) (OUTPUT, error) {
 		result := <-asyncResult
 
 		return result.Value, result.Err

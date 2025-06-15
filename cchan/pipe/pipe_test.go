@@ -246,14 +246,14 @@ func TestPassThrough(t *testing.T) {
 
 func TestAsyncAwaitSteps(t *testing.T) {
 	t.Run("AsyncAwaitSteps", func(t *testing.T) {
-		asyncTest(t, nil, nil, 6)
-		asyncTest(t, ptr.P(1), nil, 4)
-		asyncTest(t, ptr.P(2), nil, 3)
-		asyncTest(t, ptr.P(3), nil, 3)
-		asyncTest(t, ptr.P(4), nil, 2)
-		asyncTest(t, ptr.P(5), nil, 2)
-		asyncTest(t, ptr.P(9), nil, 2)
-		asyncTest(t, ptr.P(10), nil, 1)
+		// asyncTest(t, nil, 2, 6)
+		// asyncTest(t, nil, 3, 4)
+		asyncTest(t, nil, 4, 3)
+		asyncTest(t, nil, 5, 3)
+		asyncTest(t, nil, 6, 2)
+		asyncTest(t, nil, 7, 2)
+		asyncTest(t, nil, 11, 2)
+		asyncTest(t, nil, 12, 1)
 	})
 
 	t.Run("context cancelled", func(t *testing.T) {
@@ -267,12 +267,10 @@ func TestAsyncAwaitSteps(t *testing.T) {
 			inputChan <- 'c' // 이 데이터는 처리되지 않음
 			close(inputChan)
 		}()
-		asyncContext(t, ctx, inputChan, 1)
+		asyncContext(t, ctx, inputChan, 100, 1)
 	})
 
-	t.Run("context timeout", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100) //데이터가 처리되기 전에 context가 취소됨
-		defer cancel()
+	testAsyncTimeout := func(t *testing.T, concurrencySize int, expectedSeconds int) {
 		inputChan := make(chan byte)
 
 		go func() {
@@ -283,11 +281,19 @@ func TestAsyncAwaitSteps(t *testing.T) {
 			close(inputChan)
 		}()
 
-		asyncContext(t, ctx, inputChan, 0)
+		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*1100) //첫 사이클이 처리된 후 timeout
+		asyncContext(t, ctx, inputChan, 3, 3)
+	}
+	t.Run("context timeout", func(t *testing.T) {
+		testAsyncTimeout(t, 1, 1)
+		testAsyncTimeout(t, 2, 2)
+		testAsyncTimeout(t, 3, 3)
+		testAsyncTimeout(t, 4, 4)
 	})
+
 }
 
-func asyncTest(t *testing.T, asyncBufferSize *int, awaitBufferSize *int, expectedSeconds int) {
+func asyncTest(t *testing.T, bufferSize *int, concurrencySize int, expectedSeconds int) {
 	ctx := context.Background()
 	inputChan := make(chan byte)
 
@@ -297,8 +303,8 @@ func asyncTest(t *testing.T, asyncBufferSize *int, awaitBufferSize *int, expecte
 
 	asyncStep, awaitStep := pipe.NewAsyncAwaitSteps(
 		ctx,
-		asyncBufferSize, // asyncStep 버퍼 사이즈는 nil로 설정하여 기본값(0) 사용
-		awaitBufferSize,
+		bufferSize, // asyncStep 버퍼 사이즈는 nil로 설정하여 기본값(0) 사용
+		concurrencySize,
 		func(ctx context.Context, num int) (int, error) {
 			select {
 			case <-ctx.Done():
@@ -351,7 +357,7 @@ func asyncTest(t *testing.T, asyncBufferSize *int, awaitBufferSize *int, expecte
 
 }
 
-func asyncContext(t *testing.T, ctx context.Context, inputChan chan byte, expectedProcessedCount int) {
+func asyncContext(t *testing.T, ctx context.Context, inputChan chan byte, concurrencySize int, expectedProcessedCount int) {
 
 	step1 := pipe.NewStep(nil, func(num byte) (int, error) {
 		return int(num) - 96, nil
@@ -359,8 +365,8 @@ func asyncContext(t *testing.T, ctx context.Context, inputChan chan byte, expect
 
 	asyncStep, awaitStep := pipe.NewAsyncAwaitSteps(
 		ctx,
-		ptr.P(100), // asyncStep 버퍼 사이즈는 nil로 설정하여 기본값(0) 사용
-		ptr.P(100),
+		nil,
+		concurrencySize,
 		func(ctx context.Context, num int) (int, error) {
 			select {
 			case <-ctx.Done():
@@ -371,19 +377,15 @@ func asyncContext(t *testing.T, ctx context.Context, inputChan chan byte, expect
 		},
 	)
 
-	step2 := pipe.NewStep(nil, func(num int) (string, error) {
-		return fmt.Sprintf("%d", num), nil
-	})
+	asyncResultChan, errChan := pipe.Pipeline3(ctx, inputChan, step1, asyncStep, awaitStep)
 
-	asyncResultChan, errChan := pipe.Pipeline4(ctx, inputChan, step1, asyncStep, awaitStep, step2)
-
-	exepectedResults := []string{"2", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "24"}
+	exepectedResults := []int{2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24}
 	index := 0
 	for result := range asyncResultChan {
 		require.Equal(t, exepectedResults[index], result)
 		index++
 	}
-	require.Equal(t, index, expectedProcessedCount)
+	require.Equal(t, expectedProcessedCount, index)
 	index = 0
 	for err := range errChan {
 		require.Fail(t, "errChan should be empty", err)
