@@ -6,7 +6,7 @@ type Result[T any] struct {
 }
 
 func ExecAsync[T any](fn func() (T, error)) <-chan Result[T] {
-	ch := make(chan Result[T])
+	ch := make(chan Result[T], 1)
 
 	go func() {
 		defer close(ch)
@@ -19,7 +19,7 @@ func ExecAsync[T any](fn func() (T, error)) <-chan Result[T] {
 }
 
 func ExecAsyncWithParam[T any, P any](param P, fn func(P) (T, error)) <-chan Result[T] {
-	ch := make(chan Result[T])
+	ch := make(chan Result[T], 1)
 
 	go func() {
 		defer close(ch)
