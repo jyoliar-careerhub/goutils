@@ -241,6 +241,158 @@ func TestPassThrough(t *testing.T) {
 
 		require.Len(t, sideResults, 2, sideResults)
 	})
+
+}
+
+func TestAsyncAwaitSteps(t *testing.T) {
+	t.Run("AsyncAwaitSteps", func(t *testing.T) {
+		// asyncTest(t, nil, 2, 6)
+		// asyncTest(t, nil, 3, 4)
+		asyncTest(t, nil, 4, 3)
+		asyncTest(t, nil, 5, 3)
+		asyncTest(t, nil, 6, 2)
+		asyncTest(t, nil, 7, 2)
+		asyncTest(t, nil, 11, 2)
+		asyncTest(t, nil, 12, 1)
+	})
+
+	t.Run("context cancelled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		inputChan := make(chan byte)
+		go func() {
+			inputChan <- 'a'
+			time.Sleep(time.Millisecond * 1100) // 첫 번째 데이터는 처리된 후 취소
+			cancel()                            // context 취소
+			inputChan <- 'b'
+			inputChan <- 'c' // 이 데이터는 처리되지 않음
+			close(inputChan)
+		}()
+		asyncContext(t, ctx, inputChan, 100, 1)
+	})
+
+	testAsyncTimeout := func(t *testing.T, concurrencySize int, expectedSeconds int) {
+		inputChan := make(chan byte)
+
+		go func() {
+			inputChan <- 'a'
+			inputChan <- 'b'
+			inputChan <- 'c'
+			inputChan <- 'd'
+			close(inputChan)
+		}()
+
+		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*1100) //첫 사이클이 처리된 후 timeout
+		asyncContext(t, ctx, inputChan, 3, 3)
+	}
+	t.Run("context timeout", func(t *testing.T) {
+		testAsyncTimeout(t, 1, 1)
+		testAsyncTimeout(t, 2, 2)
+		testAsyncTimeout(t, 3, 3)
+		testAsyncTimeout(t, 4, 4)
+	})
+
+}
+
+func asyncTest(t *testing.T, bufferSize *int, concurrencySize int, expectedSeconds int) {
+	ctx := context.Background()
+	inputChan := make(chan byte)
+
+	step1 := pipe.NewStep(nil, func(num byte) (int, error) {
+		return int(num) - 96, nil
+	})
+
+	asyncStep, awaitStep := pipe.NewAsyncAwaitSteps(
+		ctx,
+		bufferSize, // asyncStep 버퍼 사이즈는 nil로 설정하여 기본값(0) 사용
+		concurrencySize,
+		func(ctx context.Context, num int) (int, error) {
+			select {
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			case <-time.After(time.Second):
+				// 1초 후에 결과를 반환
+				return num * 2, nil
+			}
+		},
+	)
+
+	step2 := pipe.NewStep(nil, func(num int) (string, error) {
+		return fmt.Sprintf("%d", num), nil
+	})
+
+	asyncResultChan, errChan := pipe.Pipeline4(ctx, inputChan, step1, asyncStep, awaitStep, step2)
+
+	start := time.Now()
+	go func() {
+		inputChan <- 'a'
+		inputChan <- 'b'
+		inputChan <- 'c'
+		inputChan <- 'd'
+		inputChan <- 'e'
+		inputChan <- 'f'
+		inputChan <- 'g'
+		inputChan <- 'h'
+		inputChan <- 'i'
+		inputChan <- 'j'
+		inputChan <- 'k'
+		inputChan <- 'l'
+		close(inputChan)
+	}()
+	exepectedResults := []string{"2", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "24"}
+	index := 0
+	for result := range asyncResultChan {
+		require.Equal(t, exepectedResults[index], result)
+		index++
+	}
+
+	require.Len(t, errChan, 0)
+	for err := range errChan {
+		require.Fail(t, "errChan should be empty", err)
+	}
+
+	end := time.Now()
+
+	expectedEnd := start.Add(time.Duration(expectedSeconds) * time.Second)
+	require.WithinDurationf(t, expectedEnd, end, 100*time.Millisecond, "Expected processing to complete within %d seconds, but took %d", expectedEnd.Sub(start).Milliseconds(), end.Sub(start).Milliseconds())
+
+}
+
+func asyncContext(t *testing.T, ctx context.Context, inputChan chan byte, concurrencySize int, expectedProcessedCount int) {
+
+	step1 := pipe.NewStep(nil, func(num byte) (int, error) {
+		return int(num) - 96, nil
+	})
+
+	asyncStep, awaitStep := pipe.NewAsyncAwaitSteps(
+		ctx,
+		nil,
+		concurrencySize,
+		func(ctx context.Context, num int) (int, error) {
+			select {
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			case <-time.After(time.Second):
+				return num * 2, nil
+			}
+		},
+	)
+
+	asyncResultChan, errChan := pipe.Pipeline3(ctx, inputChan, step1, asyncStep, awaitStep)
+
+	exepectedResults := []int{2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24}
+	index := 0
+	for result := range asyncResultChan {
+		require.Equal(t, exepectedResults[index], result)
+		index++
+	}
+	require.Equal(t, expectedProcessedCount, index)
+	index = 0
+	for err := range errChan {
+		require.Fail(t, "errChan should be empty", err)
+		index++
+	}
+	require.Equal(t, index, 0) //context 취소 이후에는 데이터와 에러는 더 이상 전송되지 않아야 함
+
 }
 
 type errNagativeNumber struct {
