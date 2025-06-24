@@ -49,27 +49,29 @@ func NewStep[INPUT, OUTPUT any, ERROR error](bufferSize *int, action func(INPUT)
 	return Step[INPUT, OUTPUT, ERROR]{bufferSize, action}
 }
 
-type token struct{}
-
 func NewAsyncAwaitSteps[INPUT, OUTPUT any](
 	ctx context.Context,
 	bufferSize *int,
 	concurrencySize int,
 	action func(context.Context, INPUT) (OUTPUT, error),
 ) (Step[INPUT, <-chan async.Result[OUTPUT], error], Step[<-chan async.Result[OUTPUT], OUTPUT, error]) {
-	p := ppool.NewPool(concurrencySize, func() (token, error) {
-		return token{}, nil
+	p := ppool.NewPool(concurrencySize, func() (chan async.Result[OUTPUT], error) {
+		return make(chan async.Result[OUTPUT], 1), nil
 	})
+
 	asyncStep := NewStep(ptr.P(concurrencySize), func(input INPUT) (<-chan async.Result[OUTPUT], error) {
-		tk, err := p.Acquire(ctx)
+		ch, err := p.Acquire(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		return async.ExecAsyncWithParam(ctx, input, func(ctx context.Context, input INPUT) (OUTPUT, error) {
-			defer p.Release(tk)
-			return action(ctx, input)
-		}), nil
+		go func() {
+			defer p.Release(ch)
+			value, err := action(ctx, input)
+			ch <- async.Result[OUTPUT]{Value: value, Err: err}
+		}()
+
+		return ch, nil
 	})
 
 	awaitStep := NewStep(bufferSize, func(asyncResult <-chan async.Result[OUTPUT]) (OUTPUT, error) {
